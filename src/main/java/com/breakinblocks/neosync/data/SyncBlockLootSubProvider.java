@@ -25,8 +25,8 @@ public final class SyncBlockLootSubProvider extends BlockLootSubProvider {
 
     @Override
     protected void generate() {
-        this.add(SyncBlocks.SHELL_STORAGE.get(), this::createSilkTouchOnlyTable);
-        this.add(SyncBlocks.SHELL_CONSTRUCTOR.get(), this::createSilkTouchOnlyTable);
+        this.dropSelf(SyncBlocks.SHELL_STORAGE.get());
+        this.dropSelf(SyncBlocks.SHELL_CONSTRUCTOR.get());
         this.add(SyncBlocks.TREADMILL.get(), block -> LootTable.lootTable().withPool(
                 LootPool.lootPool()
                         .setRolls(ConstantValue.exactly(1))

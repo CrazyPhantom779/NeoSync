@@ -36,7 +36,7 @@ NeoSync provides *shells*; clones of the player, each with their own inventory, 
 - Hoppers connected to a shell storage can equip or unequip armor/tools on the stored shell.
 - Shell storage needs continuous power to keep its shell alive (configurable); accepts redstone and/or FE.
 - Comparator output from a shell container reports either *build progress* or *inventory fullness*. Right-click the container with a **wrench** (stick by default) to toggle.
-- Shell containers are fragile — mine with **silk touch** to recover them.
+- Shell containers drop themselves when mined — any pickaxe works, no silk touch needed.
 
 ## Config
 

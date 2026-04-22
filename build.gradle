@@ -2,9 +2,11 @@ plugins {
     id 'java-library'
     id 'maven-publish'
     id 'net.neoforged.moddev' version '2.0.78'
+    id 'me.modmuss50.mod-publish-plugin' version '1.1.0'
 }
 
-version = project.mod_version
+def isSnapshot = System.getenv('SNAPSHOT') == 'true'
+version = "${project.minecraft_version}-${project.mod_version}${isSnapshot ? '-SNAPSHOT' : ''}"
 group = project.maven_group
 
 base {
@@ -132,6 +134,47 @@ publishing {
         }
     }
     repositories {
-        // publish targets go here
+        maven {
+            name = 'BreakInBlocks'
+            url = isSnapshot
+                    ? 'https://maven.breakinblocks.com/snapshots'
+                    : 'https://maven.breakinblocks.com/releases'
+            credentials {
+                username = System.getenv('MAVEN_USER') ?: ''
+                password = System.getenv('MAVEN_TOKEN') ?: ''
+            }
+        }
+    }
+}
+
+// Mod publishing to CurseForge and Modrinth (GitHub releases handled by CI)
+publishMods {
+    file = jar.archiveFile
+    def changelogFile = file("metadata/changelogs/${project.mod_version}.md")
+    changelog = changelogFile.exists() ? changelogFile.text : "Release ${version}"
+    type = isSnapshot ? BETA : STABLE
+    modLoaders.add('neoforge')
+
+    curseforge {
+        projectId = project.curseforge_project_id
+        projectSlug = project.mod_id
+        accessToken = providers.environmentVariable('CURSEFORGE_TOKEN')
+        minecraftVersions.add(project.minecraft_version)
+        optional('jei', 'jade')
+    }
+
+    modrinth {
+        projectId = project.modrinth_project_id
+        accessToken = providers.environmentVariable('MODRINTH_TOKEN')
+        minecraftVersions.add(project.minecraft_version)
+        optional('jei', 'jade')
+    }
+}
+
+// Include Maven publish when running publishMods
+tasks.named('publishMods') {
+    def mavenUser = providers.environmentVariable('MAVEN_USER')
+    if (mavenUser.isPresent()) {
+        dependsOn 'publishMavenJavaPublicationToBreakInBlocksRepository'
     }
 }

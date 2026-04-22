@@ -26,6 +26,7 @@ import com.breakinblocks.neosync.common.utils.nbt.NbtSerializer;
 import com.breakinblocks.neosync.common.utils.nbt.NbtSerializerFactory;
 import com.breakinblocks.neosync.common.utils.nbt.NbtSerializerFactoryBuilder;
 import com.breakinblocks.neosync.common.utils.nbt.SyncRegistries;
+import com.mojang.authlib.properties.Property;
 
 import java.util.Collection;
 import java.util.Objects;
@@ -69,6 +70,8 @@ public class ShellState {
 
     private UUID ownerUuid;
     private String ownerName;
+    private String textureValue;
+    private String textureSignature;
     private float health;
     private int gameMode;
     private SimpleInventory inventory;
@@ -117,6 +120,14 @@ public class ShellState {
 
     public String getOwnerName() {
         return this.ownerName;
+    }
+
+    public String getTextureValue() {
+        return this.textureValue;
+    }
+
+    public String getTextureSignature() {
+        return this.textureSignature;
     }
 
     public float getHealth() {
@@ -242,6 +253,11 @@ public class ShellState {
 
         shell.ownerUuid = player.getUUID();
         shell.ownerName = player.getName().getString();
+        Property textures = player.getGameProfile().getProperties().get("textures").stream().findFirst().orElse(null);
+        if (textures != null) {
+            shell.textureValue = textures.value();
+            shell.textureSignature = textures.signature();
+        }
         shell.gameMode = player.gameMode.getGameModeForPlayer().getId();
         shell.inventory = new SimpleInventory();
         shell.component = ShellStateComponent.empty();
@@ -362,6 +378,8 @@ public class ShellState {
 
                 .add(UUID.class, "ownerUuid", x -> x.ownerUuid, (x, ownerUuid) -> x.ownerUuid = ownerUuid)
                 .add(String.class, "ownerName", x -> x.ownerName, (x, ownerName) -> x.ownerName = ownerName)
+                .add(String.class, "textureValue", x -> x.textureValue, (x, v) -> x.textureValue = v)
+                .add(String.class, "textureSignature", x -> x.textureSignature, (x, v) -> x.textureSignature = v)
                 .add(Float.class, "health", x -> x.health, (x, health) -> x.health = health)
                 .add(Integer.class, "gameMode", x -> x.gameMode, (x, gameMode) -> x.gameMode = gameMode)
                 .add(ListTag.class, "inventory", x -> x.inventory.writeNbt(new ListTag()), (x, inventory) -> { x.inventory = new SimpleInventory(); x.inventory.readNbt(inventory); })

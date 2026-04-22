@@ -64,5 +64,18 @@ public final class SyncLanguageProvider extends LanguageProvider {
 
         add("config.jade.plugin_neosync.shell_container", "Shell Container");
         add("config.jade.plugin_neosync.treadmill", "Treadmill");
+
+        add("advancements.neosync.root.title", "One Mind, Many Bodies");
+        add("advancements.neosync.root.description", "Obtain a Sync Core and begin your journey into serial immortality.");
+        add("advancements.neosync.place_constructor.title", "For Science");
+        add("advancements.neosync.place_constructor.description", "Place a Shell Constructor. The lab is open.");
+        add("advancements.neosync.place_storage.title", "Soul Cage");
+        add("advancements.neosync.place_storage.description", "Place a Shell Storage. A vacant body awaits.");
+        add("advancements.neosync.place_treadmill.title", "Piggawatts");
+        add("advancements.neosync.place_treadmill.description", "Place a Treadmill. Livestock-powered industry.");
+        add("advancements.neosync.first_sync.title", "Out of Body Experience");
+        add("advancements.neosync.first_sync.description", "Transfer your consciousness into a shell for the first time.");
+        add("advancements.neosync.cross_dim_sync.title", "Astral Projection");
+        add("advancements.neosync.cross_dim_sync.description", "Sync into a shell resting in a different dimension.");
     }
 }

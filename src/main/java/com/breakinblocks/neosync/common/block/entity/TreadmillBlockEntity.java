@@ -2,6 +2,7 @@ package com.breakinblocks.neosync.common.block.entity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.Connection;
@@ -276,14 +277,14 @@ public class TreadmillBlockEntity extends BlockEntity implements DoubleBlockEnti
     }
 
     @Override
-    public CompoundTag getUpdateTag(net.minecraft.core.HolderLookup.Provider registries) {
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = super.getUpdateTag(registries);
         saveAdditional(tag, registries);
         return tag;
     }
 
     @Override
-    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt, net.minecraft.core.HolderLookup.Provider registries) {
+    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt, HolderLookup.Provider registries) {
         CompoundTag tag = pkt.getTag();
         if (tag != null) {
             loadAdditional(tag, registries);
@@ -291,7 +292,7 @@ public class TreadmillBlockEntity extends BlockEntity implements DoubleBlockEnti
     }
 
     @Override
-    protected void loadAdditional(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider registries) {
+    protected void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries) {
         super.loadAdditional(nbt, registries);
         this.runnerUUID = nbt.hasUUID("runner") ? nbt.getUUID("runner") : null;
         this.runnerId = nbt.contains("runnerId", Tag.TAG_INT) ? nbt.getInt("runnerId") : null;
@@ -300,7 +301,7 @@ public class TreadmillBlockEntity extends BlockEntity implements DoubleBlockEnti
     }
 
     @Override
-    protected void saveAdditional(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider registries) {
+    protected void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries) {
         super.saveAdditional(nbt, registries);
         UUID runnerUuid = this.runnerUUID == null ? this.runner == null ? null : this.runner.getUUID() : this.runnerUUID;
         if (runnerUuid != null) {

@@ -5,6 +5,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
+import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
@@ -54,7 +55,7 @@ public abstract class EntityRenderDispatcherMixin {
     private <T extends Entity> void sync$getRenderer(T entity, CallbackInfoReturnable<EntityRenderer<? super T>> cir) {
         if (entity instanceof ShellEntity shell) {
             PlayerInfo playerInfo = shell.getPlayerInfo();
-            String modelType = (playerInfo != null && playerInfo.getSkin().model() == net.minecraft.client.resources.PlayerSkin.Model.SLIM) ? "slim" : "default";
+            String modelType = (playerInfo != null && playerInfo.getSkin().model() == PlayerSkin.Model.SLIM) ? "slim" : "default";
             EntityRenderer<? extends Player> renderer = this.sync$shellRenderers.get(modelType);
             if (renderer != null) {
                 cir.setReturnValue((EntityRenderer<? super T>) renderer);

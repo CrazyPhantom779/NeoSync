@@ -1,6 +1,8 @@
 package com.breakinblocks.neosync.common.item;
 
+import com.breakinblocks.neosync.common.utils.nbt.SyncRegistries;
 import com.google.common.collect.ImmutableList;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -118,14 +120,14 @@ public class SimpleInventory implements Container, Nameable {
     }
 
     public ListTag writeNbt(ListTag nbtList) {
-        return writeNbt(nbtList, com.breakinblocks.neosync.common.utils.nbt.SyncRegistries.provider());
+        return writeNbt(nbtList, SyncRegistries.provider());
     }
 
     public void readNbt(ListTag nbtList) {
-        readNbt(nbtList, com.breakinblocks.neosync.common.utils.nbt.SyncRegistries.provider());
+        readNbt(nbtList, SyncRegistries.provider());
     }
 
-    public ListTag writeNbt(ListTag nbtList, net.minecraft.core.HolderLookup.Provider registries) {
+    public ListTag writeNbt(ListTag nbtList, HolderLookup.Provider registries) {
         for (Map.Entry<NonNullList<ItemStack>, Integer> inventoryInfo : Map.of(this.main, 0, this.armor, 100, this.offHand, 150).entrySet()) {
             NonNullList<ItemStack> inventory = inventoryInfo.getKey();
             int delta = inventoryInfo.getValue();
@@ -141,7 +143,7 @@ public class SimpleInventory implements Container, Nameable {
         return nbtList;
     }
 
-    public void readNbt(ListTag nbtList, net.minecraft.core.HolderLookup.Provider registries) {
+    public void readNbt(ListTag nbtList, HolderLookup.Provider registries) {
         this.main.clear();
         this.armor.clear();
         this.offHand.clear();

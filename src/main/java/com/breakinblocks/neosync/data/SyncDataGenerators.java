@@ -1,5 +1,6 @@
 package com.breakinblocks.neosync.data;
 
+import net.minecraft.core.HolderLookup;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.PackOutput;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -19,10 +20,10 @@ public final class SyncDataGenerators {
         DataGenerator generator = event.getGenerator();
         PackOutput output = generator.getPackOutput();
         ExistingFileHelper existing = event.getExistingFileHelper();
-        CompletableFuture<net.minecraft.core.HolderLookup.Provider> lookup = event.getLookupProvider();
+        CompletableFuture<HolderLookup.Provider> lookup = event.getLookupProvider();
 
         SyncDatapackProvider datapack = new SyncDatapackProvider(output, lookup);
-        CompletableFuture<net.minecraft.core.HolderLookup.Provider> datapackLookup = datapack.getRegistryProvider();
+        CompletableFuture<HolderLookup.Provider> datapackLookup = datapack.getRegistryProvider();
 
         generator.addProvider(event.includeServer(), datapack);
         generator.addProvider(event.includeServer(), new SyncRecipeProvider(output, datapackLookup));

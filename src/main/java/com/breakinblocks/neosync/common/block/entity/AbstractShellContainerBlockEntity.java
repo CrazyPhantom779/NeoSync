@@ -7,6 +7,7 @@ import com.breakinblocks.neosync.api.shell.ShellStateContainer;
 import com.breakinblocks.neosync.api.shell.ShellStateManager;
 import com.breakinblocks.neosync.common.block.AbstractShellContainerBlock;
 import com.breakinblocks.neosync.common.item.SimpleInventory;
+import com.breakinblocks.neosync.common.utils.nbt.SyncRegistries;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -26,6 +27,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.neoforged.api.distmarker.Dist;
@@ -220,7 +222,7 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
     }
 
     @Override
-    public CompoundTag getUpdateTag(net.minecraft.core.HolderLookup.Provider registries) {
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag nbt = super.getUpdateTag(registries);
         this.saveAdditional(nbt, registries);
         return nbt;
@@ -232,27 +234,27 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
     }
 
     @Override
-    protected void saveAdditional(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider registries) {
+    protected void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries) {
         super.saveAdditional(nbt, registries);
-        com.breakinblocks.neosync.common.utils.nbt.SyncRegistries.push(registries);
+        SyncRegistries.push(registries);
         try {
             if (this.shell != null) {
                 nbt.put("shell", this.shell.writeNbt(new CompoundTag()));
             }
         } finally {
-            com.breakinblocks.neosync.common.utils.nbt.SyncRegistries.pop();
+            SyncRegistries.pop();
         }
         nbt.putInt("color", this.color == null ? -1 : this.color.getId());
     }
 
     @Override
-    protected void loadAdditional(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider registries) {
+    protected void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries) {
         super.loadAdditional(nbt, registries);
-        com.breakinblocks.neosync.common.utils.nbt.SyncRegistries.push(registries);
+        SyncRegistries.push(registries);
         try {
             this.shell = nbt.contains("shell") ? ShellState.fromNbt(nbt.getCompound("shell")) : null;
         } finally {
-            com.breakinblocks.neosync.common.utils.nbt.SyncRegistries.pop();
+            SyncRegistries.pop();
         }
 
         // Fix position for existing shells

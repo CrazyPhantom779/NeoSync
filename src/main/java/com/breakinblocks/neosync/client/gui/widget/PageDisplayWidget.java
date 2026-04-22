@@ -141,7 +141,7 @@ public class PageDisplayWidget<TKey, UData> extends AbstractWidget {
     }
 
     private void renderTitleAndPagination(GuiGraphics guiGraphics) {
-        String paginationText = String.format("%s / %s", this.selectedPageIndex + 1, this.selectedSectionPageCount);
+        Component paginationText = Component.translatable("gui.neosync.page_display.pagination", this.selectedPageIndex + 1, this.selectedSectionPageCount);
         Font font = RenderSystemUtil.getTextRenderer();
         float paginationTextScale = 0.5F;
         float titleHeight = font.lineHeight * this.scale;
@@ -156,7 +156,7 @@ public class PageDisplayWidget<TKey, UData> extends AbstractWidget {
         RenderSystemUtil.drawRectangle(guiGraphics.pose(), boxLeft, boxTop, paginationBoxWidth / this.scale, titleHeight / this.scale, titleHeight * 0.25F / this.scale, this.scale, 0, this.step, backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
 
         RenderSystemUtil.drawCenteredText(guiGraphics, this.selectedKeyAsText, this.cX, top + titleHeight, this.scale, this.textColor, true);
-        RenderSystemUtil.drawCenteredText(guiGraphics, Component.literal(paginationText), this.cX, top + 1.5F * titleHeight + spacing, this.scale * paginationTextScale, this.textColor, false);
+        RenderSystemUtil.drawCenteredText(guiGraphics, paginationText, this.cX, top + 1.5F * titleHeight + spacing, this.scale * paginationTextScale, this.textColor, false);
     }
 
     private boolean focused;

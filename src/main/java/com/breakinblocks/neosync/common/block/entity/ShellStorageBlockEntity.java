@@ -16,6 +16,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.nbt.CompoundTag;
@@ -178,14 +179,14 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
     }
 
     @Override
-    protected void saveAdditional(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider registries) {
+    protected void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries) {
         super.saveAdditional(nbt, registries);
         nbt.putInt("storedEnergy", this.storedEnergy);
         nbt.putInt("ticksWithoutPower", this.ticksWithoutPower);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider registries) {
+    protected void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries) {
         super.loadAdditional(nbt, registries);
         this.storedEnergy = nbt.getInt("storedEnergy");
         this.ticksWithoutPower = nbt.getInt("ticksWithoutPower");

@@ -1,6 +1,7 @@
 package com.breakinblocks.neosync.client.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -58,8 +59,8 @@ public final class SyncRenderers {
         private BlockEntity renderEntity;
 
         public SyncBlockEntityItemRenderer(BlockEntityType<?> blockEntityType, Block block) {
-            super(net.minecraft.client.Minecraft.getInstance().getBlockEntityRenderDispatcher(),
-                    net.minecraft.client.Minecraft.getInstance().getEntityModels());
+            super(Minecraft.getInstance().getBlockEntityRenderDispatcher(),
+                    Minecraft.getInstance().getEntityModels());
             this.blockEntityType = blockEntityType;
             this.block = block;
         }
@@ -71,7 +72,7 @@ public final class SyncRenderers {
             }
 
             if (renderEntity != null) {
-                net.minecraft.client.Minecraft.getInstance().getBlockEntityRenderDispatcher().renderItem(renderEntity, poseStack, buffer, packedLight, packedOverlay);
+                Minecraft.getInstance().getBlockEntityRenderDispatcher().renderItem(renderEntity, poseStack, buffer, packedLight, packedOverlay);
             }
         }
     }

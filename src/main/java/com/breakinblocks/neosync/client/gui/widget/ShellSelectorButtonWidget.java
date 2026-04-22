@@ -228,7 +228,7 @@ public class ShellSelectorButtonWidget extends AbstractWidget {
         float fontScale = fontHeight / font.lineHeight;
 
         int progress = (int)Math.floor(this.shell.getProgress() * 100);
-        Component progressText = Component.literal(String.format("%s%%", progress));
+        Component progressText = Component.translatable("gui.neosync.shell_selector.progress_percent", progress);
         float boxHeight = fontHeight * BOX_SCALE;
         float progressTextWidth = font.width(progressText) * fontScale;
         float progressBoxWidth = Math.max(boxHeight * 2F, progressTextWidth);
@@ -259,7 +259,7 @@ public class ShellSelectorButtonWidget extends AbstractWidget {
         }
 
         BlockPos pos = this.shell.getPos();
-        return Component.literal(String.format("%s, %s, %s", pos.getX(), pos.getY(), pos.getZ()));
+        return Component.translatable("gui.neosync.shell_selector.position", pos.getX(), pos.getY(), pos.getZ());
     }
 
     private static boolean liesOnCircle(double x, double y, double cX, double cY, double r) {

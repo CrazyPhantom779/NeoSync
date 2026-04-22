@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.DyeColor;
@@ -24,6 +25,7 @@ import com.breakinblocks.neosync.common.utils.math.Radians;
 import com.breakinblocks.neosync.common.utils.nbt.NbtSerializer;
 import com.breakinblocks.neosync.common.utils.nbt.NbtSerializerFactory;
 import com.breakinblocks.neosync.common.utils.nbt.NbtSerializerFactoryBuilder;
+import com.breakinblocks.neosync.common.utils.nbt.SyncRegistries;
 
 import java.util.Collection;
 import java.util.Objects;
@@ -41,19 +43,19 @@ public class ShellState {
 
     public static final StreamCodec<RegistryFriendlyByteBuf, ShellState> STREAM_CODEC = StreamCodec.of(
             (buf, state) -> {
-                com.breakinblocks.neosync.common.utils.nbt.SyncRegistries.push(buf.registryAccess());
+                SyncRegistries.push(buf.registryAccess());
                 try {
                     buf.writeNbt(state.writeNbt(new CompoundTag()));
                 } finally {
-                    com.breakinblocks.neosync.common.utils.nbt.SyncRegistries.pop();
+                    SyncRegistries.pop();
                 }
             },
             buf -> {
-                com.breakinblocks.neosync.common.utils.nbt.SyncRegistries.push(buf.registryAccess());
+                SyncRegistries.push(buf.registryAccess());
                 try {
                     return ShellState.fromNbt(buf.readNbt());
                 } finally {
-                    com.breakinblocks.neosync.common.utils.nbt.SyncRegistries.pop();
+                    SyncRegistries.pop();
                 }
             }
     );
@@ -307,7 +309,7 @@ public class ShellState {
         ItemEntity item = new ItemEntity(world, pos.getX(), pos.getY(), pos.getZ(), stack);
         item.setPickUpDelay(40);
         if (world instanceof ServerLevel serverLevel) {
-            net.minecraft.world.entity.Entity thrower = serverLevel.getEntity(this.getOwnerUuid());
+            Entity thrower = serverLevel.getEntity(this.getOwnerUuid());
             if (thrower != null) {
                 item.setThrower(thrower);
             }

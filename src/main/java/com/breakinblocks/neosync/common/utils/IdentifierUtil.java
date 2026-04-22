@@ -18,6 +18,7 @@ public final class IdentifierUtil {
     }
 
     public static Component prettifyAsText(ResourceLocation identifier) {
-        return Component.literal(prettify(identifier));
+        String translationKey = "dimension." + identifier.getNamespace() + "." + identifier.getPath();
+        return Component.translatableWithFallback(translationKey, prettify(identifier));
     }
 }

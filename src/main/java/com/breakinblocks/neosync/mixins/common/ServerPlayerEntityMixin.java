@@ -300,7 +300,7 @@ abstract class ServerPlayerEntityMixin extends Player implements ServerShell, Ki
             this.tellNeutralMobsThatIDied();
         }
 
-        if (!this.isSpectator() && this.level() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+        if (!this.isSpectator() && this.level() instanceof ServerLevel serverLevel) {
             this.dropAllDeathLoot(serverLevel, source);
         }
 
@@ -432,7 +432,7 @@ abstract class ServerPlayerEntityMixin extends Player implements ServerShell, Ki
         ServerLevel serverWorld = this.serverLevel();
         ServerPlayer serverPlayer = (ServerPlayer)(Object)this;
 
-        net.minecraft.network.protocol.game.CommonPlayerSpawnInfo spawnInfo = new net.minecraft.network.protocol.game.CommonPlayerSpawnInfo(
+        CommonPlayerSpawnInfo spawnInfo = new CommonPlayerSpawnInfo(
                 targetWorld.dimensionTypeRegistration(),
                 targetWorld.dimension(),
                 BiomeManager.obfuscateSeed(targetWorld.getSeed()),

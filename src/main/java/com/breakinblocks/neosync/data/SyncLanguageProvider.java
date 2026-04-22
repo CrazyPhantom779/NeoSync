@@ -42,6 +42,9 @@ public final class SyncLanguageProvider extends LanguageProvider {
         add("gui.neosync.shell_selector.down.title", "Next world");
         add("gui.neosync.shell_selector.left.title", "Previous page");
         add("gui.neosync.shell_selector.right.title", "Next page");
+        add("gui.neosync.shell_selector.progress_percent", "%s%%");
+        add("gui.neosync.shell_selector.position", "%s, %s, %s");
+        add("gui.neosync.page_display.pagination", "%s / %s");
 
         add("jade.neosync.owner", "Owner: %s");
         add("jade.neosync.progress", "Building: %s");

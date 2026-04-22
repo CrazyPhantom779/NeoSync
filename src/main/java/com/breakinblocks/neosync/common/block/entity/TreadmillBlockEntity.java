@@ -102,10 +102,6 @@ public class TreadmillBlockEntity extends BlockEntity implements DoubleBlockEnti
             return;
         }
 
-        if (this.runner instanceof LivingEntity livingEntity) {
-            float speed = 0.6F + 0.4F * this.runningTime / MAX_RUNNING_TIME;
-            livingEntity.walkAnimation.update(speed, 0.4F);
-        }
         this.runningTime = Math.min(++this.runningTime, MAX_RUNNING_TIME);
     }
 
@@ -139,9 +135,6 @@ public class TreadmillBlockEntity extends BlockEntity implements DoubleBlockEnti
         if (this.runner instanceof LivingEntity livingEntity) {
             livingEntity.setSpeed(0.15F);
             livingEntity.setDeltaMovement(HORIZONTAL_MOTION[face.ordinal()]);
-
-            float speed = 0.6F + 0.4F * this.runningTime / MAX_RUNNING_TIME;
-            livingEntity.walkAnimation.update(speed, 0.4F);
 
             if (livingEntity instanceof Mob mob) {
                 mob.getNavigation().stop();

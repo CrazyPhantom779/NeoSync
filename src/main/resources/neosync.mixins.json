@@ -1,0 +1,25 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.breakinblocks.neosync.mixins",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "common.LivingEntityMixin",
+    "common.MinecraftServerMixin",
+    "common.PlayerEntityMixin",
+    "common.ServerPlayerEntityMixin"
+  ],
+  "client": [
+    "client.ClientPlayerEntityMixin",
+    "client.ClientPlayerInteractionManagerMixin",
+    "client.EntityMixin",
+    "client.EntityRenderDispatcherMixin",
+    "client.LivingEntityRendererAccessor",
+    "client.MinecraftClientMixin",
+    "client.PlayerEntityModelMixin",
+    "client.WorldRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

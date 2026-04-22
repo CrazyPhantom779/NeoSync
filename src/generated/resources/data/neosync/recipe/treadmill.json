@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "C": {
+      "item": "minecraft:gray_carpet"
+    },
+    "D": {
+      "item": "minecraft:daylight_detector"
+    },
+    "G": {
+      "item": "minecraft:gray_concrete"
+    },
+    "I": {
+      "item": "minecraft:iron_bars"
+    },
+    "R": {
+      "item": "minecraft:redstone"
+    }
+  },
+  "pattern": [
+    "  D",
+    "CCI",
+    "GGR"
+  ],
+  "result": {
+    "count": 1,
+    "id": "neosync:treadmill"
+  }
+}

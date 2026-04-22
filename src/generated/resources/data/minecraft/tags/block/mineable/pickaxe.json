@@ -1,0 +1,7 @@
+{
+  "values": [
+    "neosync:shell_storage",
+    "neosync:shell_constructor",
+    "neosync:treadmill"
+  ]
+}

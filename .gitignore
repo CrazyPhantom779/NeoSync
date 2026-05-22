@@ -41,3 +41,4 @@ runs/
 *.md
 !README.md
 !CHANGELOG.md
+!metadata/changelogs/*.md

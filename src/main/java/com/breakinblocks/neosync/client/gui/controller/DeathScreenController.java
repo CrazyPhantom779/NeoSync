@@ -1,14 +1,18 @@
 package com.breakinblocks.neosync.client.gui.controller;
 
+import com.breakinblocks.neosync.NeoSync;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 
 @OnlyIn(Dist.CLIENT)
+@EventBusSubscriber(modid = NeoSync.MOD_ID, value = Dist.CLIENT)
 public final class DeathScreenController {
     private static boolean suspended;
+
+    private DeathScreenController() {}
 
     public static boolean isSuspended() {
         return suspended;
@@ -22,12 +26,18 @@ public final class DeathScreenController {
         suspended = false;
     }
 
-    static {
-        NeoForge.EVENT_BUS.register(DeathScreenController.class);
+    @SubscribeEvent
+    public static void onLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
+        restore();
     }
 
     @SubscribeEvent
-    public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+    public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        restore();
+    }
+
+    @SubscribeEvent
+    public static void onClone(ClientPlayerNetworkEvent.Clone event) {
         restore();
     }
 }

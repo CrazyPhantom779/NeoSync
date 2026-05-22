@@ -170,4 +170,14 @@ public class PersistentCameraEntity extends LocalPlayer {
     public static void onPlayerLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         unset(Minecraft.getInstance());
     }
+
+    @SubscribeEvent
+    public static void onPlayerLogin(ClientPlayerNetworkEvent.LoggingIn event) {
+        unset(Minecraft.getInstance());
+    }
+
+    @SubscribeEvent
+    public static void onPlayerClone(ClientPlayerNetworkEvent.Clone event) {
+        unset(Minecraft.getInstance());
+    }
 }

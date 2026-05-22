@@ -1,11 +1,16 @@
 package com.breakinblocks.neosync.client.gui.hud;
 
+import com.breakinblocks.neosync.NeoSync;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 
 @OnlyIn(Dist.CLIENT)
+@EventBusSubscriber(modid = NeoSync.MOD_ID, value = Dist.CLIENT)
 public final class HudController {
     private static Boolean wasHudHidden;
 
@@ -22,6 +27,7 @@ public final class HudController {
     public static void restore() {
         Options opts = options();
         if (opts == null) {
+            wasHudHidden = null;
             return;
         }
         if (wasHudHidden != null) {
@@ -44,5 +50,20 @@ public final class HudController {
     private static Options options() {
         Minecraft mc = Minecraft.getInstance();
         return mc == null ? null : mc.options;
+    }
+
+    @SubscribeEvent
+    public static void onLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
+        restore();
+    }
+
+    @SubscribeEvent
+    public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        restore();
+    }
+
+    @SubscribeEvent
+    public static void onClone(ClientPlayerNetworkEvent.Clone event) {
+        restore();
     }
 }

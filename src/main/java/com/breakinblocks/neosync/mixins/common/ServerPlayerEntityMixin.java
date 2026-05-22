@@ -113,6 +113,9 @@ abstract class ServerPlayerEntityMixin extends Player implements ServerShell, Ki
         }
 
         boolean isDead = this.isDeadOrDying();
+        if (isDead && !this.undead) {
+            return Either.right(PlayerSyncEvents.SyncFailureReason.INVALID_CURRENT_LOCATION);
+        }
         ShellStateContainer currentShellContainer = isDead ? null : ShellStateContainer.find(currentWorld, currentPos);
         if (!isDead && (currentShellContainer == null || currentShellContainer.getShellState() != null)) {
             return Either.right(PlayerSyncEvents.SyncFailureReason.INVALID_CURRENT_LOCATION);

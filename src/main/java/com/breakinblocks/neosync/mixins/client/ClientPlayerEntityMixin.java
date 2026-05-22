@@ -19,6 +19,7 @@ import com.breakinblocks.neosync.api.shell.ShellPriority;
 import com.breakinblocks.neosync.api.shell.ShellState;
 import com.breakinblocks.neosync.client.gui.controller.DeathScreenController;
 import com.breakinblocks.neosync.client.gui.hud.HudController;
+import com.breakinblocks.neosync.common.config.SyncConfig;
 import com.breakinblocks.neosync.common.entity.KillableEntity;
 import com.breakinblocks.neosync.common.entity.LookingEntity;
 import com.breakinblocks.neosync.common.entity.PersistentCameraEntity;
@@ -35,6 +36,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -190,15 +192,23 @@ public abstract class  ClientPlayerEntityMixin extends AbstractClientPlayer impl
 
     @Override
     public void onKillableEntityDeath() {
-        boolean canRespawn = this.sync$shellsById.values().stream()
-                .anyMatch(s -> this.canBeApplied(s) && s.getProgress() >= ShellState.PROGRESS_DONE);
+        if (!this.sync$isArtificial) {
+            return;
+        }
+
         BlockPos pos = this.blockPosition();
         ResourceLocation world = WorldUtil.getId(this.level());
-        Comparator<ShellState> comparator = ShellPriority.asComparator(world, pos, ShellPriority.NATURAL);
-        ShellState respawnShell = canRespawn ? this.sync$shellsById.values().stream()
+        List<ShellPriority> priorities = SyncConfig.getInstance().syncPriority().stream()
+                .map(SyncConfig.ShellPriorityEntry::priority)
+                .collect(Collectors.toList());
+        if (priorities.isEmpty()) {
+            priorities = List.of(ShellPriority.NATURAL);
+        }
+        Comparator<ShellState> comparator = ShellPriority.asComparator(world, pos, priorities);
+        ShellState respawnShell = this.sync$shellsById.values().stream()
                 .filter(x -> this.canBeApplied(x) && x.getProgress() >= ShellState.PROGRESS_DONE)
                 .min(comparator)
-                .orElse(null) : null;
+                .orElse(null);
         if (respawnShell != null) {
             this.beginSync(respawnShell);
         }

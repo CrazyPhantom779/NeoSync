@@ -1,4 +1,4 @@
-package com.breakinblocks.neosync.common.block.entity;
+package com.breakinblocks.neosync.client.entity;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;

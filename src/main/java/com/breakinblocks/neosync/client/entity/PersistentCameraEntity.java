@@ -1,4 +1,4 @@
-package com.breakinblocks.neosync.common.entity;
+package com.breakinblocks.neosync.client.entity;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;

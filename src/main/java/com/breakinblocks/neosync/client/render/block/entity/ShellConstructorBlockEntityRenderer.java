@@ -15,6 +15,7 @@ import com.breakinblocks.neosync.common.block.AbstractShellContainerBlock;
 import com.breakinblocks.neosync.common.block.SyncBlocks;
 import com.breakinblocks.neosync.common.block.entity.ShellConstructorBlockEntity;
 import com.breakinblocks.neosync.common.block.entity.ShellEntity;
+import com.breakinblocks.neosync.client.entity.ClientShellEntities;
 
 @OnlyIn(Dist.CLIENT)
 public class ShellConstructorBlockEntityRenderer extends AbstractShellContainerBlockEntityRenderer<ShellConstructorBlockEntity> {
@@ -39,7 +40,7 @@ public class ShellConstructorBlockEntityRenderer extends AbstractShellContainerB
 
     @Override
     protected ShellEntity createEntity(ShellState shellState, ShellConstructorBlockEntity blockEntity, float tickDelta) {
-        ShellEntity entity = shellState.asEntity();
+        ShellEntity entity = shellClientShellEntities.get(state);
         entity.isActive = false;
         entity.pitchProgress = 0;
         return entity;

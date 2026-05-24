@@ -1,4 +1,4 @@
-package com.breakinblocks.neosync.api.networking;
+package com.breakinblocks.neosync.client.networking;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -11,6 +11,9 @@ import net.neoforged.api.distmarker.OnlyIn;
 import com.breakinblocks.neosync.api.shell.ClientShell;
 import com.breakinblocks.neosync.api.shell.Shell;
 import com.breakinblocks.neosync.api.shell.ShellState;
+import com.breakinblocks.neosync.client.networking.ClientNetworkHandler;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.DistExecutor;
 
 @OnlyIn(Dist.CLIENT)
 public final class ClientNetworkHandler {

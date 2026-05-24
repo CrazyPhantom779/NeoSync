@@ -15,6 +15,7 @@ import com.breakinblocks.neosync.common.block.AbstractShellContainerBlock;
 import com.breakinblocks.neosync.common.block.SyncBlocks;
 import com.breakinblocks.neosync.common.block.entity.ShellStorageBlockEntity;
 import com.breakinblocks.neosync.common.block.entity.ShellEntity;
+import com.breakinblocks.neosync.client.entity.ClientShellEntities;
 
 @OnlyIn(Dist.CLIENT)
 public class ShellStorageBlockEntityRenderer extends AbstractShellContainerBlockEntityRenderer<ShellStorageBlockEntity> {
@@ -40,7 +41,7 @@ public class ShellStorageBlockEntityRenderer extends AbstractShellContainerBlock
 
     @Override
     protected ShellEntity createEntity(ShellState shellState, ShellStorageBlockEntity blockEntity, float tickDelta) {
-        ShellEntity entity = shellState.asEntity();
+        ShellEntity entity = shellClientShellEntities.get(state);
         entity.isActive = shellState.getProgress() >= ShellState.PROGRESS_DONE;
         entity.pitchProgress = entity.isActive ? blockEntity.getConnectorProgress(tickDelta) : 0;
         return entity;

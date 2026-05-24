@@ -18,7 +18,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
-import com.breakinblocks.neosync.common.block.entity.ShellEntity;
 import com.breakinblocks.neosync.common.item.SimpleInventory;
 import com.breakinblocks.neosync.common.utils.WorldUtil;
 import com.breakinblocks.neosync.common.utils.math.Radians;
@@ -339,18 +338,6 @@ public class ShellState {
     @Override
     public int hashCode() {
         return Objects.hash(this.uuid);
-    }
-
-
-    @OnlyIn(Dist.CLIENT)
-    private ShellEntity entityInstance;
-
-    @OnlyIn(Dist.CLIENT)
-    public ShellEntity asEntity() {
-        if (this.entityInstance == null) {
-            this.entityInstance = new ShellEntity(this);
-        }
-        return this.entityInstance;
     }
 
     static {

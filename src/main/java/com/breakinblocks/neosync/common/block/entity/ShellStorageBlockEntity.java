@@ -2,10 +2,8 @@ package com.breakinblocks.neosync.common.block.entity;
 
 import com.breakinblocks.neosync.api.event.PlayerSyncEvents;
 import com.breakinblocks.neosync.common.block.ShellStorageBlock;
-import com.breakinblocks.neosync.client.gui.ShellSelectorGUI;
 import com.breakinblocks.neosync.common.config.SyncConfig;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeItem;

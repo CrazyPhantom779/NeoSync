@@ -101,6 +101,6 @@ public record ShellStateUpdatePacket(
     }
 
     public static void handle(ShellStateUpdatePacket payload, IPayloadContext context) {
-        context.enqueueWork(() -> ClientNetworkHandler.onShellStateUpdate(payload));
+        context.enqueueWork(() -> ClientPacketDispatch.onShellStateUpdate(payload));
     }
 }

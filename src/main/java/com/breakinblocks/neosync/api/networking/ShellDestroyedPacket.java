@@ -27,6 +27,6 @@ public record ShellDestroyedPacket(BlockPos pos) implements CustomPacketPayload 
     }
 
     public static void handle(ShellDestroyedPacket payload, IPayloadContext context) {
-        context.enqueueWork(() -> ClientNetworkHandler.onShellDestroyed(payload));
+        context.enqueueWork(() -> ClientPacketDispatch.onShellDestroyed(payload));
     }
 }

@@ -48,6 +48,6 @@ public record PlayerIsAlivePacket(UUID playerUuid) implements CustomPacketPayloa
     }
 
     public static void handle(PlayerIsAlivePacket payload, IPayloadContext context) {
-        context.enqueueWork(() -> ClientNetworkHandler.onPlayerIsAlive(payload));
+        context.enqueueWork(() -> ClientPacketDispatch.onPlayerIsAlive(payload));
     }
 }

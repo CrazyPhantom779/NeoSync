@@ -39,6 +39,6 @@ public record ShellUpdatePacket(ResourceLocation worldId, boolean isArtificial, 
     }
 
     public static void handle(ShellUpdatePacket payload, IPayloadContext context) {
-        context.enqueueWork(() -> ClientNetworkHandler.onShellUpdate(payload));
+        context.enqueueWork(() -> ClientPacketDispatch.onShellUpdate(payload));
     }
 }

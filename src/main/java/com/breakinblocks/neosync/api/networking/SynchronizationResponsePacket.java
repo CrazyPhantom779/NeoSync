@@ -63,6 +63,6 @@ public record SynchronizationResponsePacket(
     }
 
     public static void handle(SynchronizationResponsePacket payload, IPayloadContext context) {
-        context.enqueueWork(() -> ClientNetworkHandler.onSynchronizationResponse(payload));
+        context.enqueueWork(() -> ClientPacketDispatch.onSynchronizationResponse(payload));
     }
 }

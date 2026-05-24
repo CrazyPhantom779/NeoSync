@@ -14,6 +14,7 @@ import net.minecraft.world.entity.player.PlayerModelPart;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import com.breakinblocks.neosync.api.shell.ShellState;
+import com.breakinblocks.neosync.integration.dragonsurvival.NeoSyncDragonSurvivalCompat;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;

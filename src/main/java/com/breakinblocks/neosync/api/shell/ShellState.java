@@ -25,6 +25,8 @@ import com.breakinblocks.neosync.common.utils.nbt.NbtSerializer;
 import com.breakinblocks.neosync.common.utils.nbt.NbtSerializerFactory;
 import com.breakinblocks.neosync.common.utils.nbt.NbtSerializerFactoryBuilder;
 import com.breakinblocks.neosync.common.utils.nbt.SyncRegistries;
+import com.breakinblocks.neosync.integration.dragonsurvival.DragonSurvivalShellStateComponent;
+import com.breakinblocks.neosync.integration.dragonsurvival.NeoSyncDragonSurvivalCompat;
 
 import java.util.Collection;
 import java.util.Objects;
@@ -244,6 +246,13 @@ public class ShellState {
         shell.gameMode = player.gameMode.getGameModeForPlayer().getId();
         shell.inventory = new SimpleInventory();
         shell.component = ShellStateComponent.empty();
+
+        if (!copyPlayerState && NeoSyncDragonSurvivalCompat.isLoaded()) {
+            shell.component = ShellStateComponent.combine(
+                    shell.component,
+                    DragonSurvivalShellStateComponent.of(player)
+            );
+        }
 
         if (copyPlayerState) {
             shell.health = player.getHealth();

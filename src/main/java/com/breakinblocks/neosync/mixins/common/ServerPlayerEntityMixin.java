@@ -41,6 +41,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -180,7 +181,8 @@ abstract class ServerPlayerEntityMixin extends Player implements ServerShell, Ki
         this.removeAllEffects();
 
         new PlayerIsAlivePacket(serverPlayer).sendToAll(server);
-        this.teleport(targetWorld, state.getPos());
+        BlockPos teleportPos = NeoSyncSableCompat.projectOut(targetWorld, state.getPos());
+        this.teleport(targetWorld, teleportPos);
         this.isArtificial = state.isArtificial();
 
         Inventory inventory = this.getInventory();

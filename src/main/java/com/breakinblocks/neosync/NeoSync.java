@@ -15,6 +15,7 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import com.breakinblocks.neosync.integration.dragonsurvival.NeoSyncDragonSurvivalCompat;
 
 @Mod(NeoSync.MOD_ID)
 public class NeoSync {
@@ -30,6 +31,8 @@ public class NeoSync {
         SyncItems.ITEMS.register(modEventBus);
 
         SyncCommands.init();
+
+        NeoSyncDragonSurvivalCompat.init();
 
         if (dist.isClient()) {
             modEventBus.addListener(this::onClientSetup);

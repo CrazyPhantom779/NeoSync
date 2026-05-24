@@ -1,10 +1,15 @@
 package com.breakinblocks.neosync.api.networking;
 
+import com.breakinblocks.neosync.NeoSync;
+import com.breakinblocks.neosync.api.shell.ServerShell;
+import com.breakinblocks.neosync.api.shell.ShellState;
+import com.breakinblocks.neosync.common.utils.BlockPosUtil;
+import com.breakinblocks.neosync.common.utils.WorldUtil;
+import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.UUIDUtil;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -13,12 +18,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import com.breakinblocks.neosync.NeoSync;
-import com.breakinblocks.neosync.api.event.PlayerSyncEvents;
-import com.breakinblocks.neosync.api.shell.ServerShell;
-import com.breakinblocks.neosync.api.shell.ShellState;
-import com.breakinblocks.neosync.common.utils.BlockPosUtil;
-import com.breakinblocks.neosync.common.utils.WorldUtil;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -26,8 +25,9 @@ import java.util.UUID;
 public record SynchronizationRequestPacket(Optional<UUID> shellUuid) implements CustomPacketPayload {
     public static final Type<SynchronizationRequestPacket> TYPE = new Type<>(NeoSync.locate("shell/synchronization/request"));
 
-    public static final StreamCodec<FriendlyByteBuf, SynchronizationRequestPacket> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC), SynchronizationRequestPacket::shellUuid,
+    public static final StreamCodec<net.minecraft.network.FriendlyByteBuf, SynchronizationRequestPacket> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC),
+            SynchronizationRequestPacket::shellUuid,
             SynchronizationRequestPacket::new
     );
 
@@ -36,7 +36,7 @@ public record SynchronizationRequestPacket(Optional<UUID> shellUuid) implements 
     }
 
     @Override
-    public Type<? extends CustomPacketPayload> type() {
+    public Type<SynchronizationRequestPacket> type() {
         return TYPE;
     }
 
@@ -49,34 +49,64 @@ public record SynchronizationRequestPacket(Optional<UUID> shellUuid) implements 
             if (!(context.player() instanceof ServerPlayer player) || !(player instanceof ServerShell shell)) {
                 return;
             }
+
             ShellState state = payload.shellUuid.map(shell::getShellStateByUuid).orElse(null);
 
             BlockPos currentPos = player.blockPosition();
             Level currentWorld = player.level();
             ResourceLocation currentWorldId = WorldUtil.getId(currentWorld);
+
+            BlockPos responseCurrentPos = NeoSyncSableCompat.projectOut(currentWorld, currentPos);
+
             Direction currentFacing = BlockPosUtil.getHorizontalFacing(currentPos, currentWorld)
                     .orElse(player.getDirection().getOpposite());
 
-            Either<ShellState, PlayerSyncEvents.SyncFailureReason> result = shell.sync(state);
-            result.ifLeft(storedState -> {
+            Either<?, ?> result = shell.sync(state);
+
+            result.ifLeft(storedStateObject -> {
                 if (state == null) {
                     return;
                 }
+
+                ShellState storedState = (ShellState) storedStateObject;
+
                 ResourceLocation targetWorldId = state.getWorld();
                 BlockPos targetPos = state.getPos();
+
+                Level targetWorld = player.getServer() == null
+                        ? null
+                        : WorldUtil.findWorld(player.getServer().getAllLevels(), targetWorldId).orElse(null);
+
+                BlockPos responseTargetPos = targetWorld == null
+                        ? targetPos
+                        : NeoSyncSableCompat.projectOut(targetWorld, targetPos);
+
                 Direction targetFacing = player.getDirection().getOpposite();
+
                 PacketDistributor.sendToPlayer(player, new SynchronizationResponsePacket(
-                        currentWorldId, currentPos, currentFacing,
-                        targetWorldId, targetPos, targetFacing,
-                        Optional.of(storedState)));
-            }).ifRight(failureReason -> {
+                        currentWorldId,
+                        responseCurrentPos,
+                        currentFacing,
+                        targetWorldId,
+                        responseTargetPos,
+                        targetFacing,
+                        Optional.of(storedState)
+                ));
+            }).ifRight(failureReasonObject -> {
+                var failureReason = (com.breakinblocks.neosync.api.event.PlayerSyncEvents.SyncFailureReason) failureReasonObject;
+
                 player.sendSystemMessage(failureReason.toText());
+
                 PacketDistributor.sendToPlayer(player, new SynchronizationResponsePacket(
-                        currentWorldId, currentPos, currentFacing,
-                        currentWorldId, currentPos, currentFacing,
-                        Optional.empty()));
+                        currentWorldId,
+                        responseCurrentPos,
+                        currentFacing,
+                        currentWorldId,
+                        responseCurrentPos,
+                        currentFacing,
+                        Optional.empty()
+                ));
             });
         });
     }
 }
-

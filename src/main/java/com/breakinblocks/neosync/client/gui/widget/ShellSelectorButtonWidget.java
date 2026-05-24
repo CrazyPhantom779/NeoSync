@@ -26,6 +26,7 @@ import com.breakinblocks.neosync.client.utils.render.RenderSystemUtil;
 import com.breakinblocks.neosync.common.utils.math.Radians;
 import org.joml.Vector3f;
 import com.breakinblocks.neosync.client.entity.ClientShellEntities;
+import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
@@ -259,7 +260,12 @@ public class ShellSelectorButtonWidget extends AbstractWidget {
             return null;
         }
 
-        BlockPos pos = this.shell.getPos();
+        Minecraft client = Minecraft.getInstance();
+
+        BlockPos pos = client.level == null
+                ? this.shell.getPos()
+                : NeoSyncSableCompat.projectOut(client.level, this.shell.getPos());
+
         return Component.translatable("gui.neosync.shell_selector.position", pos.getX(), pos.getY(), pos.getZ());
     }
 

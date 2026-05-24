@@ -33,6 +33,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
 
 import java.util.Comparator;
 import java.util.Objects;
@@ -78,11 +79,15 @@ public abstract class  ClientPlayerEntityMixin extends AbstractClientPlayer impl
         PlayerSyncEvents.START_SYNCING.invoker().onStartSyncing(this, state);
 
         BlockPos pos = this.blockPosition();
+        BlockPos cameraPos = NeoSyncSableCompat.projectOut(world, pos);
+        BlockPos cameraTargetPos = NeoSyncSableCompat.projectOut(world, state.getPos());
+
         Direction facing = BlockPosUtil.getHorizontalFacing(pos, world).orElse(this.getDirection().getOpposite());
         SynchronizationRequestPacket request = new SynchronizationRequestPacket(state);
+
         PersistentCameraEntityGoal cameraGoal = this.isDeadOrDying()
-                ? PersistentCameraEntityGoal.limbo(pos, facing, state.getPos(), __ -> request.send())
-                : PersistentCameraEntityGoal.stairwayToHeaven(pos, facing, state.getPos(), __ -> request.send());
+                ? PersistentCameraEntityGoal.limbo(cameraPos, facing, cameraTargetPos, __ -> request.send())
+                : PersistentCameraEntityGoal.stairwayToHeaven(cameraPos, facing, cameraTargetPos, __ -> request.send());
 
         HudController.hide();
         if (this.isDeadOrDying()) {

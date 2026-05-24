@@ -1,5 +1,6 @@
 package com.breakinblocks.neosync.integration.sable;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
@@ -11,6 +12,11 @@ public final class NeoSyncSableCompat {
     private static Method projectOutOfSubLevel;
 
     private NeoSyncSableCompat() {
+    }
+
+    public static BlockPos projectOut(Level level, BlockPos pos) {
+        Vec3 projected = projectOut(level, Vec3.atCenterOf(pos));
+        return BlockPos.containing(projected);
     }
 
     public static Vec3 projectOut(Level level, Vec3 position) {

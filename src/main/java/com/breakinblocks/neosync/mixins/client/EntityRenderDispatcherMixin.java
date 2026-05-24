@@ -16,7 +16,7 @@ import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import com.breakinblocks.neosync.client.render.entity.ShellEntityRenderer;
-import com.breakinblocks.neosync.common.block.entity.ShellEntity;
+import com.breakinblocks.neosync.client.entity.ShellEntity;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

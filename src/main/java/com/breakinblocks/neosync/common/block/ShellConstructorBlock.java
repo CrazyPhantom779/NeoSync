@@ -25,3 +25,4 @@ public class ShellConstructorBlock extends AbstractShellContainerBlock {
         return new ShellConstructorBlockEntity(pos, state);
     }
 }
+

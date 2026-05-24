@@ -45,3 +45,4 @@ public class NeoSync {
         return ResourceLocation.fromNamespaceAndPath(MOD_ID, location);
     }
 }
+

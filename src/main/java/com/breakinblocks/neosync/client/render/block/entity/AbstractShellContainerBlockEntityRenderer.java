@@ -12,7 +12,7 @@ import com.breakinblocks.neosync.api.shell.ShellState;
 import com.breakinblocks.neosync.client.model.AbstractShellContainerModel;
 import com.breakinblocks.neosync.client.model.DoubleBlockModel;
 import com.breakinblocks.neosync.common.block.entity.AbstractShellContainerBlockEntity;
-import com.breakinblocks.neosync.common.block.entity.ShellEntity;
+import com.breakinblocks.neosync.client.entity.ShellEntity;
 
 @OnlyIn(Dist.CLIENT)
 public abstract class AbstractShellContainerBlockEntityRenderer<T extends AbstractShellContainerBlockEntity> extends DoubleBlockEntityRenderer<T> {

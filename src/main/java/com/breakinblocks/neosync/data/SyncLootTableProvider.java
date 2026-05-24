@@ -15,3 +15,4 @@ public final class SyncLootTableProvider extends LootTableProvider {
         ), registries);
     }
 }
+

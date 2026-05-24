@@ -66,3 +66,4 @@ public record SynchronizationResponsePacket(
         context.enqueueWork(() -> ClientPacketDispatch.onSynchronizationResponse(payload));
     }
 }
+

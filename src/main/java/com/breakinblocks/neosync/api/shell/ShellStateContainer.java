@@ -46,3 +46,4 @@ public interface ShellStateContainer {
         return state == null ? null : state.getColor();
     }
 }
+

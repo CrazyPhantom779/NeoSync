@@ -26,3 +26,4 @@ public class SyncBlockEntities {
                     () -> BlockEntityType.Builder.of(TreadmillBlockEntity::new,
                             SyncBlocks.TREADMILL.get()).build(null));
 }
+

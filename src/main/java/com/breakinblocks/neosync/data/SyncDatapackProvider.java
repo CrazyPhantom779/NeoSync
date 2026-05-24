@@ -23,3 +23,4 @@ public final class SyncDatapackProvider extends DatapackBuiltinEntriesProvider {
         super(output, registries, BUILDER, Set.of(NeoSync.MOD_ID));
     }
 }
+

@@ -78,3 +78,4 @@ public class TreadmillEnergyCategory implements IRecipeCategory<TreadmillEnergyC
 
     public record TreadmillEnergyRecipe(EntityType<?> entity, long energyPerTick) {}
 }
+

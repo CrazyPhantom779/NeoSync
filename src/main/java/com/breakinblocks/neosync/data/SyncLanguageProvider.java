@@ -66,3 +66,4 @@ public final class SyncLanguageProvider extends LanguageProvider {
         add("config.jade.plugin_neosync.treadmill", "Treadmill");
     }
 }
+

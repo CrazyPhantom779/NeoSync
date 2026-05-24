@@ -45,3 +45,4 @@ public class SyncJeiPlugin implements IModPlugin {
         registration.addRecipes(TreadmillEnergyCategory.RECIPE_TYPE, TreadmillEnergyCategory.buildRecipes());
     }
 }
+

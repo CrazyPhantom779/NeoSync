@@ -51,3 +51,4 @@ public record PlayerIsAlivePacket(UUID playerUuid) implements CustomPacketPayloa
         context.enqueueWork(() -> ClientPacketDispatch.onPlayerIsAlive(payload));
     }
 }
+

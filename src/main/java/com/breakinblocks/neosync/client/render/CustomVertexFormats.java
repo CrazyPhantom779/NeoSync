@@ -12,3 +12,4 @@ public final class CustomVertexFormats {
 
     private CustomVertexFormats() {}
 }
+

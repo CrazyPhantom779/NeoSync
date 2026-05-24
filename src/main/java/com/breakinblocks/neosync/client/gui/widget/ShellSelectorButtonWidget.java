@@ -20,7 +20,7 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.util.Mth;
 import net.minecraft.core.BlockPos;
 import com.mojang.math.Axis;
-import com.breakinblocks.neosync.common.block.entity.ShellEntity;
+import com.breakinblocks.neosync.client.entity.ShellEntity;
 import com.breakinblocks.neosync.client.utils.render.ColorUtil;
 import com.breakinblocks.neosync.client.utils.render.RenderSystemUtil;
 import com.breakinblocks.neosync.common.utils.math.Radians;
@@ -183,7 +183,7 @@ public class ShellSelectorButtonWidget extends AbstractWidget {
         final double SHELL_HEIGHT_HALF = 0.35F;
         final float SHELL_SCALE = 0.365F;
 
-        ShellEntity shellEntity = this.shell.asEntity();
+        ShellEntity shellEntity = ClientShellEntities.get(this.shell);
         shellEntity.pitchProgress = 0;
         shellEntity.isActive = this.shell.getProgress() >= ShellState.PROGRESS_DONE;
 

@@ -46,3 +46,4 @@ public final class SyncRegistries {
         return RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
     }
 }
+

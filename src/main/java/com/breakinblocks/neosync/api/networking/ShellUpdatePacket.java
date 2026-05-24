@@ -42,3 +42,4 @@ public record ShellUpdatePacket(ResourceLocation worldId, boolean isArtificial, 
         context.enqueueWork(() -> ClientPacketDispatch.onShellUpdate(payload));
     }
 }
+

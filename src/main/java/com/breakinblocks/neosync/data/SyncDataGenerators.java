@@ -32,3 +32,4 @@ public final class SyncDataGenerators {
         generator.addProvider(event.includeClient(), new SyncLanguageProvider(output));
     }
 }
+

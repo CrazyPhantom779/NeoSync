@@ -67,3 +67,4 @@ public final class SyncRecipeProvider extends RecipeProvider {
                 .save(output);
     }
 }
+

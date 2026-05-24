@@ -21,3 +21,4 @@ public class SyncItems {
     public static final DeferredItem<TreadmillItem> TREADMILL = ITEMS.register("treadmill",
             () -> new TreadmillItem(SyncBlocks.TREADMILL.get(), new Item.Properties().stacksTo(1)));
 }
+

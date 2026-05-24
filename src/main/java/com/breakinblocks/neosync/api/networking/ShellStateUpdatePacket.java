@@ -104,3 +104,4 @@ public record ShellStateUpdatePacket(
         context.enqueueWork(() -> ClientPacketDispatch.onShellStateUpdate(payload));
     }
 }
+

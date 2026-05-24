@@ -17,3 +17,4 @@ public class SyncJadePlugin implements IWailaPlugin {
         JadeIntegration.register();
     }
 }
+

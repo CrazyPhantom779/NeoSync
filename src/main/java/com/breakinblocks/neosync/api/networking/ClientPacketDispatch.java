@@ -1,7 +1,7 @@
 package com.breakinblocks.neosync.api.networking;
 
 import net.neoforged.api.distmarker.Dist;
-import net.neoforged.fml.DistExecutor;
+import net.neoforged.fml.loading.FMLEnvironment;
 
 import java.lang.reflect.Method;
 
@@ -32,14 +32,16 @@ public final class ClientPacketDispatch {
     }
 
     private static void invokeClient(String methodName, Object payload) {
-        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
-            try {
-                Class<?> handlerClass = Class.forName(CLIENT_HANDLER);
-                Method method = handlerClass.getMethod(methodName, payload.getClass());
-                method.invoke(null, payload);
-            } catch (ReflectiveOperationException e) {
-                throw new RuntimeException("Failed to dispatch NeoSync client packet " + payload.getClass().getName(), e);
-            }
-        });
+        if (FMLEnvironment.dist != Dist.CLIENT) {
+            return;
+        }
+
+        try {
+            Class<?> handlerClass = Class.forName(CLIENT_HANDLER);
+            Method method = handlerClass.getMethod(methodName, payload.getClass());
+            method.invoke(null, payload);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Failed to dispatch NeoSync client packet " + payload.getClass().getName(), e);
+        }
     }
 }

@@ -8,3 +8,4 @@ public class TreadmillItem extends BlockItem {
         super(block, properties);
     }
 }
+

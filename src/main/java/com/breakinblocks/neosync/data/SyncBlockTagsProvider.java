@@ -23,3 +23,4 @@ public final class SyncBlockTagsProvider extends BlockTagsProvider {
                 .add(SyncBlocks.TREADMILL.get());
     }
 }
+

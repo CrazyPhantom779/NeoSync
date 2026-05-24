@@ -30,3 +30,4 @@ public record ShellDestroyedPacket(BlockPos pos) implements CustomPacketPayload 
         context.enqueueWork(() -> ClientPacketDispatch.onShellDestroyed(payload));
     }
 }
+

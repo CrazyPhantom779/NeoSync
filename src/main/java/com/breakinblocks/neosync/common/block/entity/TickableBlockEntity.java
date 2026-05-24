@@ -34,3 +34,4 @@ public interface TickableBlockEntity {
     @SuppressWarnings("unused")
     default void onTick(Level world, BlockPos pos, BlockState state) { }
 }
+

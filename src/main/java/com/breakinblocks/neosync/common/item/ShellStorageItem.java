@@ -8,3 +8,4 @@ public class ShellStorageItem extends BlockItem {
         super(block, properties);
     }
 }
+

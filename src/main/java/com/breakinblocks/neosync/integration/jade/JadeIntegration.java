@@ -25,3 +25,4 @@ public final class JadeIntegration {
         registration.registerBlockComponent(TreadmillComponentProvider.INSTANCE, TreadmillBlock.class);
     }
 }
+

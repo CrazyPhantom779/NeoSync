@@ -7,6 +7,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import com.breakinblocks.neosync.api.event.PlayerSyncEvents;
 import org.jetbrains.annotations.Nullable;
+import java.util.UUID;
 
 import java.util.Optional;
 
@@ -27,6 +28,11 @@ public interface ClientShell extends Shell {
 
     @Nullable
     PlayerSyncEvents.SyncFailureReason beginSync(ShellState state, @Nullable BlockPos currentContainerPos);
+
+    @Nullable
+    UUID neosync$getCurrentShellUuid();
+
+    void neosync$setCurrentShellUuid(@Nullable UUID uuid);
 
     /**
      * Handles the end of an asynchronous sync operation.

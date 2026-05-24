@@ -60,6 +60,14 @@ public abstract class  ClientPlayerEntityMixin extends AbstractClientPlayer impl
         super(world, profile);
     }
 
+    @Unique
+    @Nullable
+    private UUID neosync$currentShellUuid;
+
+    @Unique
+    @Nullable
+    private UUID neosync$pendingShellUuid;
+
     @Override
     public @Nullable PlayerSyncEvents.SyncFailureReason beginSync(ShellState state, @Nullable BlockPos currentContainerPos) {
         ClientLevel world = this.clientLevel;
@@ -75,6 +83,8 @@ public abstract class  ClientPlayerEntityMixin extends AbstractClientPlayer impl
         if (failureReason != null) {
             return failureReason;
         }
+
+        this.neosync$pendingShellUuid = state == null ? null : state.getUuid();
 
         PlayerSyncEvents.START_SYNCING.invoker().onStartSyncing(this, state);
 
@@ -102,6 +112,12 @@ public abstract class  ClientPlayerEntityMixin extends AbstractClientPlayer impl
     public void endSync(ResourceLocation startWorld, BlockPos startPos, Direction startFacing, ResourceLocation targetWorld, BlockPos targetPos, Direction targetFacing, @Nullable ShellState storedState) {
         LocalPlayer player = (LocalPlayer)(Object)this;
         boolean syncFailed = Objects.equals(startPos, targetPos);
+
+        if (!syncFailed) {
+            this.neosync$currentShellUuid = this.neosync$pendingShellUuid;
+        }
+
+        this.neosync$pendingShellUuid = null;
 
         if (!syncFailed) {
             if (this.getHealth() <= 0) {
@@ -221,5 +237,16 @@ public abstract class  ClientPlayerEntityMixin extends AbstractClientPlayer impl
                 }
             }
         }
+    }
+
+    @Override
+    @Nullable
+    public UUID neosync$getCurrentShellUuid() {
+        return this.neosync$currentShellUuid;
+    }
+
+    @Override
+    public void neosync$setCurrentShellUuid(@Nullable UUID uuid) {
+        this.neosync$currentShellUuid = uuid;
     }
 }

@@ -30,6 +30,8 @@ import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
+import com.breakinblocks.neosync.api.shell.ClientShell;
+import java.util.UUID;
 
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -77,8 +79,12 @@ public class ShellSelectorGUI extends Screen {
         }
         ResourceLocation selectedWorld = player.level().dimension().location();
 
-        List shellStates = ((Shell) player)
+        ClientShell clientShell = (ClientShell) player;
+        UUID currentShellUuid = clientShell.neosync$getCurrentShellUuid();
+
+        List<ShellState> shellStates = clientShell
                 .getAvailableShellStates()
+                .filter(shellState -> currentShellUuid == null || !shellState.getUuid().equals(currentShellUuid))
                 .filter(shellState -> !isCurrentContainerOption(player, shellState))
                 .collect(Collectors.toList());
 
@@ -245,11 +251,20 @@ public class ShellSelectorGUI extends Screen {
     }
 
     private boolean isCurrentContainerOption(LocalPlayer player, ShellState shellState) {
+        // Always trust the exact storage position passed by ShellStorageBlockEntity first.
+        // Sable can make the player's visible dimension/position differ from the shell state's
+        // stored/internal world data, so do not world-check before this.
+        if (this.currentContainerPos != null && isSameStorageBlock(shellState.getPos(), this.currentContainerPos)) {
+            return true;
+        }
+
         if (!shellState.getWorld().equals(player.level().dimension().location())) {
             return false;
         }
 
-        if (this.currentContainerPos != null && isSameStorageBlock(shellState.getPos(), this.currentContainerPos)) {
+        UUID currentShellUuid = ((ClientShell) player).neosync$getCurrentShellUuid();
+
+        if (currentShellUuid != null && shellState.getUuid().equals(currentShellUuid)) {
             return true;
         }
 

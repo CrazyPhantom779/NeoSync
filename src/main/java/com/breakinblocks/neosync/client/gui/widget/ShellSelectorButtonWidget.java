@@ -25,6 +25,7 @@ import com.breakinblocks.neosync.client.utils.render.ColorUtil;
 import com.breakinblocks.neosync.client.utils.render.RenderSystemUtil;
 import com.breakinblocks.neosync.common.utils.math.Radians;
 import org.joml.Vector3f;
+import com.breakinblocks.neosync.client.entity.ClientShellEntities;
 
 import javax.annotation.Nullable;
 import java.util.Collections;

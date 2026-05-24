@@ -1,6 +1,5 @@
 package com.breakinblocks.neosync.api.shell;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
@@ -41,12 +40,4 @@ public interface ClientShell extends Shell {
      * @param storedState New state that was generated during the sync process, if any; otherwise, null.
      */
     void endSync(ResourceLocation startWorld, BlockPos startPos, Direction startFacing, ResourceLocation targetWorld, BlockPos targetPos, Direction targetFacing, @Nullable ShellState storedState);
-
-
-    /**
-     * @return Main player in the form of {@link ClientShell}.
-     */
-    static Optional<ClientShell> getMainPlayer() {
-        return Optional.ofNullable((ClientShell)Minecraft.getInstance().player);
-    }
 }

@@ -22,6 +22,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import com.breakinblocks.neosync.common.utils.BlockPosUtil;
+import java.lang.reflect.Method;
 
 public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity implements IEnergyStorage {
     private EntityState entityState;
@@ -92,24 +93,74 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
 
     @OnlyIn(Dist.CLIENT)
     public void onEntityCollisionClient(Entity entity, BlockState state) {
-        Minecraft client = Minecraft.getInstance();
         if (!(entity instanceof Player player)) {
             return;
         }
 
+        boolean isLocalPlayer = isLocalClientPlayer(entity);
+        boolean hasNoScreen = hasNoClientScreen();
+
         if (this.entityState == EntityState.NONE) {
             boolean isInside = BlockPosUtil.isEntityInside(entity, this.worldPosition);
-            PlayerSyncEvents.ShellSelectionFailureReason failureReason = !isInside && client.player == entity ? PlayerSyncEvents.ALLOW_SHELL_SELECTION.invoker().allowShellSelection(player, this) : null;
+            PlayerSyncEvents.ShellSelectionFailureReason failureReason = !isInside && isLocalPlayer
+                    ? PlayerSyncEvents.ALLOW_SHELL_SELECTION.invoker().allowShellSelection(player, this)
+                    : null;
+
             this.entityState = isInside || failureReason != null ? EntityState.CHILLING : EntityState.ENTERING;
+
             if (failureReason != null) {
                 player.displayClientMessage(failureReason.toText(), true);
             }
-        } else if (this.entityState != EntityState.CHILLING && client.screen == null) {
-            BlockPosUtil.moveEntity(entity, this.worldPosition, state.getValue(ShellStorageBlock.FACING), this.entityState == EntityState.ENTERING);
+        } else if (this.entityState != EntityState.CHILLING && hasNoScreen) {
+            BlockPosUtil.moveEntity(
+                    entity,
+                    this.worldPosition,
+                    state.getValue(ShellStorageBlock.FACING),
+                    this.entityState == EntityState.ENTERING
+            );
         }
 
-        if (this.entityState == EntityState.ENTERING && client.player == entity && client.screen == null && BlockPosUtil.isEntityInside(entity, this.worldPosition)) {
-            client.setScreen(new ShellSelectorGUI(() -> this.entityState = EntityState.LEAVING, () -> this.entityState = EntityState.CHILLING));
+        if (this.entityState == EntityState.ENTERING
+                && isLocalPlayer
+                && hasNoClientScreen()
+                && BlockPosUtil.isEntityInside(entity, this.worldPosition)) {
+            openShellSelectorClient(
+                    () -> this.entityState = EntityState.LEAVING,
+                    () -> this.entityState = EntityState.CHILLING
+            );
+        }
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static boolean isLocalClientPlayer(Entity entity) {
+        Object result = invokeClientHook("isLocalPlayer", new Class<?>[]{Entity.class}, entity);
+        return result instanceof Boolean value && value;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static boolean hasNoClientScreen() {
+        Object result = invokeClientHook("hasNoScreen", new Class<?>[0]);
+        return result instanceof Boolean value && value;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static void openShellSelectorClient(Runnable onCloseCallback, Runnable onRemovedCallback) {
+        invokeClientHook(
+                "openShellSelector",
+                new Class<?>[]{Runnable.class, Runnable.class},
+                onCloseCallback,
+                onRemovedCallback
+        );
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static Object invokeClientHook(String methodName, Class<?>[] parameterTypes, Object... args) {
+        try {
+            Class<?> hooksClass = Class.forName("com.breakinblocks.neosync.client.block.entity.ShellStorageClientHooks");
+            Method method = hooksClass.getMethod(methodName, parameterTypes);
+            return method.invoke(null, args);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Failed to invoke NeoSync client shell storage hook " + methodName, e);
         }
     }
 

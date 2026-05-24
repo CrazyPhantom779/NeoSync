@@ -36,6 +36,8 @@ import net.minecraft.world.level.LevelAccessor;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import com.breakinblocks.neosync.common.utils.ItemUtil;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.properties.Property;
 
 @SuppressWarnings("deprecation")
 public abstract class AbstractShellContainerBlock extends BaseEntityBlock {
@@ -67,15 +69,7 @@ public abstract class AbstractShellContainerBlock extends BaseEntityBlock {
     }
 
     public static void setOpen(BlockState state, Level world, BlockPos pos, boolean open) {
-        if (state.getValue(OPEN) != open) {
-            world.setBlock(pos, state.setValue(OPEN, open), 10);
-
-            BlockPos secondPos = pos.relative(getDirectionTowardsAnotherPart(state));
-            BlockState secondState = world.getBlockState(secondPos);
-            if (secondState != null) {
-                world.setBlock(secondPos, secondState.setValue(OPEN, open), 10);
-            }
-        }
+        setPropertyForBothParts(state, world, pos, OPEN, open);
     }
 
     public static boolean isOpen(BlockState state) {
@@ -270,6 +264,42 @@ public abstract class AbstractShellContainerBlock extends BaseEntityBlock {
         public String toString() {
             return this.getSerializedName();
         }
+    }
+
+    private static <T extends Comparable<T>> void setPropertyForBothParts(
+            BlockState state,
+            Level world,
+            BlockPos pos,
+            Property<T> property,
+            T value
+    ) {
+        if (!state.hasProperty(HALF)) {
+            return;
+        }
+
+        setPropertyIfPresent(world, pos, property, value);
+
+        BlockPos otherPartPos = pos.relative(getDirectionTowardsAnotherPart(state));
+        setPropertyIfPresent(world, otherPartPos, property, value);
+    }
+
+    private static <T extends Comparable<T>> void setPropertyIfPresent(
+            Level world,
+            BlockPos pos,
+            Property<T> property,
+            T value
+    ) {
+        BlockState currentState = world.getBlockState(pos);
+
+        if (!currentState.hasProperty(property)) {
+            return;
+        }
+
+        if (currentState.getValue(property).equals(value)) {
+            return;
+        }
+
+        world.setBlock(pos, currentState.setValue(property, value), Block.UPDATE_CLIENTS | Block.UPDATE_NEIGHBORS);
     }
 
     static {

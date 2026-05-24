@@ -1,12 +1,11 @@
 package com.breakinblocks.neosync.api.shell;
 
+import com.breakinblocks.neosync.common.block.AbstractShellContainerBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -27,8 +26,8 @@ public interface ShellStateContainer {
     static BlockPos getContainerBottomPos(Level world, BlockPos pos) {
         BlockState state = world.getBlockState(pos);
 
-        if (state.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)
-                && state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.UPPER) {
+        if (state.hasProperty(AbstractShellContainerBlock.HALF)
+                && !AbstractShellContainerBlock.isBottom(state)) {
             return pos.below();
         }
 

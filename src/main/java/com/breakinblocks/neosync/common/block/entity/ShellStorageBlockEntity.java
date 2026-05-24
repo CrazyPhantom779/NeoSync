@@ -26,6 +26,7 @@ import java.lang.reflect.Method;
 import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
+import com.breakinblocks.neosync.common.block.AbstractShellContainerBlock;
 
 public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity implements IEnergyStorage {
     private EntityState entityState;
@@ -55,6 +56,18 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
     @Override
     public void onServerTick(Level world, BlockPos pos, BlockState state) {
         super.onServerTick(world, pos, state);
+
+        BlockState liveState = world.getBlockState(pos);
+
+        if (!(liveState.getBlock() instanceof ShellStorageBlock) || !liveState.hasProperty(AbstractShellContainerBlock.HALF)) {
+            return;
+        }
+
+        if (!AbstractShellContainerBlock.isBottom(liveState)) {
+            return;
+        }
+
+        state = liveState;
 
         SyncConfig config = SyncConfig.getInstance();
         boolean infinitePower = config.shellStorageConsumption() == 0;

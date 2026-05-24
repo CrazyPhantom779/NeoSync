@@ -65,13 +65,6 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
 
     @Override
     public void setShellState(ShellState shell) {
-        AbstractShellContainerBlockEntity target = this.getBottomPart().orElse(this);
-
-        if (target != this) {
-            target.setShellState(shell);
-            return;
-        }
-
         this.shell = shell;
 
         if (shell != null && this.worldPosition != null) {
@@ -80,8 +73,8 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
 
         if (this.level != null && !this.level.isClientSide && this.worldPosition != null && this.getBlockState() != null) {
             this.checkShellState(this.level, this.worldPosition, this.getBlockState());
-            this.sync();
             this.setChanged();
+            this.sync();
         }
     }
 
@@ -221,6 +214,7 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
         if (this.shell != null) {
             this.shell.drop(world, pos);
             new ShellDestroyedPacket(pos).send(world, pos, 32);
+
             this.setShellState(null);
             this.setChanged();
             this.sync();
@@ -406,12 +400,24 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
 
         syncBlockEntity(serverWorld, this.worldPosition);
 
-        BlockPos otherPartPos = this.worldPosition.relative(AbstractShellContainerBlock.getDirectionTowardsAnotherPart(this.getBlockState()));
-        syncBlockEntity(serverWorld, otherPartPos);
+        BlockState state = this.getBlockState();
+
+        if (state.hasProperty(AbstractShellContainerBlock.HALF)) {
+            BlockPos otherPartPos = this.worldPosition.relative(
+                    AbstractShellContainerBlock.getDirectionTowardsAnotherPart(state)
+            );
+
+            syncBlockEntity(serverWorld, otherPartPos);
+        }
     }
 
     private static void syncBlockEntity(ServerLevel world, BlockPos pos) {
         BlockState state = world.getBlockState(pos);
+        BlockEntity blockEntity = world.getBlockEntity(pos);
+
+        if (blockEntity != null) {
+            blockEntity.setChanged();
+        }
 
         world.getChunkSource().blockChanged(pos);
         world.sendBlockUpdated(pos, state, state, 3);

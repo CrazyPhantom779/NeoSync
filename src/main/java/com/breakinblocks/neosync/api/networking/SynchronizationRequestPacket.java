@@ -112,15 +112,18 @@ public record SynchronizationRequestPacket(
 
                 Direction targetFacing = player.getDirection().getOpposite();
 
+            if (storedState == null) {
                 PacketDistributor.sendToPlayer(player, new SynchronizationResponsePacket(
                         currentWorldId,
                         responseCurrentPos,
                         currentFacing,
-                        targetWorldId,
-                        responseTargetPos,
-                        targetFacing,
-                        Optional.of(storedState)
+                        currentWorldId,
+                        responseCurrentPos,
+                        currentFacing,
+                        Optional.empty()
                 ));
+                return;
+            }
             }).ifRight(failureReasonObject -> {
                 PlayerSyncEvents.SyncFailureReason failureReason =
                         (PlayerSyncEvents.SyncFailureReason) failureReasonObject;

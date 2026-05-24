@@ -5,6 +5,7 @@ import com.breakinblocks.neosync.api.event.PlayerSyncEvents;
 import com.breakinblocks.neosync.api.shell.ServerShell;
 import com.breakinblocks.neosync.api.shell.ShellState;
 import com.breakinblocks.neosync.common.utils.BlockPosUtil;
+import com.breakinblocks.neosync.common.utils.NeoSyncDebug;
 import com.breakinblocks.neosync.common.utils.WorldUtil;
 import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
 import com.mojang.datafixers.util.Either;
@@ -27,11 +28,12 @@ public record SynchronizationRequestPacket(
         Optional<UUID> shellUuid,
         Optional<BlockPos> currentContainerPos
 ) implements CustomPacketPayload {
-    public static final Type<SynchronizationRequestPacket> TYPE =
-            new Type<>(NeoSync.locate("shell/synchronization/request"));
+    public static final Type<SynchronizationRequestPacket> TYPE = new Type<>(NeoSync.locate("shell/synchronization/request"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, SynchronizationRequestPacket> STREAM_CODEC =
-            StreamCodec.of(SynchronizationRequestPacket::encode, SynchronizationRequestPacket::decode);
+    public static final StreamCodec<RegistryFriendlyByteBuf, SynchronizationRequestPacket> STREAM_CODEC = StreamCodec.of(
+            SynchronizationRequestPacket::encode,
+            SynchronizationRequestPacket::decode
+    );
 
     public SynchronizationRequestPacket(ShellState shell) {
         this(shell, null);
@@ -50,6 +52,7 @@ public record SynchronizationRequestPacket(
     }
 
     public void send() {
+        NeoSyncDebug.info("sync-packet", "client sending sync request shellUuid={} currentContainerPos={}", this.shellUuid.orElse(null), this.currentContainerPos.orElse(null));
         PacketDistributor.sendToServer(this);
     }
 
@@ -76,6 +79,7 @@ public record SynchronizationRequestPacket(
     public static void handle(SynchronizationRequestPacket payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player) || !(player instanceof ServerShell shell)) {
+                NeoSyncDebug.warn("sync-packet", "sync request ignored because context player is not ServerShell: {}", context.player());
                 return;
             }
 
@@ -90,14 +94,25 @@ public record SynchronizationRequestPacket(
             Direction currentFacing = BlockPosUtil.getHorizontalFacing(currentPos, currentWorld)
                     .orElse(player.getDirection().getOpposite());
 
-            Either<?, ?> result = shell.sync(state, payload.currentContainerPos().orElse(null));
+            NeoSyncDebug.info(
+                    "sync-packet",
+                    "server handling sync request player={} shellUuid={} resolvedState={} currentPos={} responseCurrentPos={} currentContainer={}",
+                    player.getName().getString(),
+                    payload.shellUuid().orElse(null),
+                    state == null ? "null" : state.getUuid(),
+                    currentPos,
+                    responseCurrentPos,
+                    payload.currentContainerPos().orElse(null)
+            );
 
-            result.ifLeft(storedStateObject -> {
-                if (state == null) {
+            Either<ShellState, PlayerSyncEvents.SyncFailureReason> result = shell.sync(state, payload.currentContainerPos().orElse(null));
+
+            result.ifLeft(storedState -> {
+                if (state == null || storedState == null) {
+                    NeoSyncDebug.warn("sync-packet", "sync result had null state/storedState; sending failure response state={} stored={}", state, storedState);
+                    sendFailureResponse(player, currentWorldId, responseCurrentPos, currentFacing);
                     return;
                 }
-
-                ShellState storedState = (ShellState) storedStateObject;
 
                 ResourceLocation targetWorldId = state.getWorld();
                 BlockPos targetPos = state.getPos();
@@ -112,34 +127,33 @@ public record SynchronizationRequestPacket(
 
                 Direction targetFacing = player.getDirection().getOpposite();
 
-            if (storedState == null) {
+                NeoSyncDebug.info("sync-packet", "sync success player={} targetWorld={} targetPos={} responseTargetPos={} storedShell={}", player.getName().getString(), targetWorldId, targetPos, responseTargetPos, storedState.getUuid());
                 PacketDistributor.sendToPlayer(player, new SynchronizationResponsePacket(
                         currentWorldId,
                         responseCurrentPos,
                         currentFacing,
-                        currentWorldId,
-                        responseCurrentPos,
-                        currentFacing,
-                        Optional.empty()
+                        targetWorldId,
+                        responseTargetPos,
+                        targetFacing,
+                        Optional.of(storedState)
                 ));
-                return;
-            }
-            }).ifRight(failureReasonObject -> {
-                PlayerSyncEvents.SyncFailureReason failureReason =
-                        (PlayerSyncEvents.SyncFailureReason) failureReasonObject;
-
+            }).ifRight(failureReason -> {
+                NeoSyncDebug.warn("sync-packet", "sync failed player={} reason={}", player.getName().getString(), failureReason.toText().getString());
                 player.sendSystemMessage(failureReason.toText());
-
-                PacketDistributor.sendToPlayer(player, new SynchronizationResponsePacket(
-                        currentWorldId,
-                        responseCurrentPos,
-                        currentFacing,
-                        currentWorldId,
-                        responseCurrentPos,
-                        currentFacing,
-                        Optional.empty()
-                ));
+                sendFailureResponse(player, currentWorldId, responseCurrentPos, currentFacing);
             });
         });
+    }
+
+    private static void sendFailureResponse(ServerPlayer player, ResourceLocation currentWorldId, BlockPos responseCurrentPos, Direction currentFacing) {
+        PacketDistributor.sendToPlayer(player, new SynchronizationResponsePacket(
+                currentWorldId,
+                responseCurrentPos,
+                currentFacing,
+                currentWorldId,
+                responseCurrentPos,
+                currentFacing,
+                Optional.empty()
+        ));
     }
 }

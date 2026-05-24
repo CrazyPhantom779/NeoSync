@@ -1,6 +1,7 @@
 package com.breakinblocks.neosync.api.shell;
 
 import com.breakinblocks.neosync.common.block.AbstractShellContainerBlock;
+import com.breakinblocks.neosync.common.utils.NeoSyncDebug;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.Level;
@@ -20,14 +21,19 @@ public interface ShellStateContainer {
         BlockPos containerPos = getContainerBottomPos(world, pos);
         BlockEntity blockEntity = world.getBlockEntity(containerPos);
 
-        return blockEntity instanceof ShellStateContainer container ? container : null;
+        if (blockEntity instanceof ShellStateContainer container) {
+            NeoSyncDebug.info("shell-container", "find success input={} bottom={} be={}", NeoSyncDebug.describe(world, pos), NeoSyncDebug.describe(world, containerPos), blockEntity.getClass().getSimpleName());
+            return container;
+        }
+
+        NeoSyncDebug.warn("shell-container", "find failed input={} bottom={} block={}", NeoSyncDebug.describe(world, pos), NeoSyncDebug.describe(world, containerPos), blockEntity);
+        return null;
     }
 
     static BlockPos getContainerBottomPos(Level world, BlockPos pos) {
         BlockState state = world.getBlockState(pos);
 
-        if (state.hasProperty(AbstractShellContainerBlock.HALF)
-                && !AbstractShellContainerBlock.isBottom(state)) {
+        if (state.hasProperty(AbstractShellContainerBlock.HALF) && !AbstractShellContainerBlock.isBottom(state)) {
             return pos.below();
         }
 

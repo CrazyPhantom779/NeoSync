@@ -1,6 +1,7 @@
 package com.breakinblocks.neosync.client.networking;
 
 import com.breakinblocks.neosync.api.networking.PlayerIsAlivePacket;
+import com.breakinblocks.neosync.api.networking.ShellContainerStatePacket;
 import com.breakinblocks.neosync.api.networking.ShellDestroyedPacket;
 import com.breakinblocks.neosync.api.networking.ShellStateUpdatePacket;
 import com.breakinblocks.neosync.api.networking.ShellUpdatePacket;
@@ -8,12 +9,18 @@ import com.breakinblocks.neosync.api.networking.SynchronizationResponsePacket;
 import com.breakinblocks.neosync.api.shell.ClientShell;
 import com.breakinblocks.neosync.api.shell.Shell;
 import com.breakinblocks.neosync.api.shell.ShellState;
+import com.breakinblocks.neosync.api.shell.ShellStateContainer;
+import com.breakinblocks.neosync.common.utils.NeoSyncDebug;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
@@ -26,8 +33,19 @@ public final class ClientNetworkHandler {
         LocalPlayer player = Minecraft.getInstance().player;
 
         if (player == null) {
+            NeoSyncDebug.warn("client-net", "received sync response with no local player");
             return;
         }
+
+        NeoSyncDebug.info(
+                "client-net",
+                "sync response start={} {} target={} {} storedStatePresent={}",
+                payload.startWorld(),
+                payload.startPos(),
+                payload.targetWorld(),
+                payload.targetPos(),
+                payload.storedState().isPresent()
+        );
 
         ((ClientShell) player).endSync(
                 payload.startWorld(),
@@ -44,9 +62,11 @@ public final class ClientNetworkHandler {
         LocalPlayer player = Minecraft.getInstance().player;
 
         if (player == null) {
+            NeoSyncDebug.warn("client-net", "received shell update with no local player states={}", payload.states().size());
             return;
         }
 
+        NeoSyncDebug.info("client-net", "shell update world={} artificial={} states={}", payload.worldId(), payload.isArtificial(), payload.states().size());
         Shell shell = (Shell) player;
         shell.changeArtificialStatus(payload.isArtificial());
         shell.setAvailableShellStates(payload.states().stream());
@@ -56,8 +76,20 @@ public final class ClientNetworkHandler {
         LocalPlayer player = Minecraft.getInstance().player;
 
         if (player == null) {
+            NeoSyncDebug.warn("client-net", "received shell state update with no local player kind={}", payload.kind());
             return;
         }
+
+        NeoSyncDebug.info(
+                "client-net",
+                "shell state update kind={} target={} progress={} color={} pos={} added={}",
+                payload.kind(),
+                payload.targetUuid(),
+                payload.progress(),
+                payload.color(),
+                payload.pos(),
+                payload.addedState() == null ? "null" : payload.addedState().getUuid()
+        );
 
         Shell shell = (Shell) player;
 
@@ -68,6 +100,8 @@ public final class ClientNetworkHandler {
 
                 if (removed != null) {
                     shell.remove(removed);
+                } else {
+                    NeoSyncDebug.warn("client-net", "REMOVE ignored because shell {} was not in client list", payload.targetUuid());
                 }
             }
             case UPDATE -> {
@@ -77,11 +111,59 @@ public final class ClientNetworkHandler {
                     updated.setProgress(payload.progress());
                     updated.setColor(payload.color());
                     updated.setPos(payload.pos());
+                } else {
+                    NeoSyncDebug.warn("client-net", "UPDATE ignored because shell {} was not in client list", payload.targetUuid());
                 }
             }
             case NONE -> {
             }
         }
+    }
+
+    public static void onShellContainerState(ShellContainerStatePacket payload) {
+        ClientLevel level = Minecraft.getInstance().level;
+
+        if (level == null) {
+            NeoSyncDebug.warn("client-net", "received container-state with no client level pos={}", payload.pos());
+            return;
+        }
+
+        ShellState shellState = payload.shell().orElse(null);
+        DyeColor color = payload.color().orElse(null);
+        NeoSyncDebug.info("client-net", "container-state pos={} shell={} color={}", payload.pos(), shellState == null ? "null" : shellState.getUuid(), color);
+
+        if (!applyContainerState(level, payload.pos(), shellState)) {
+            NeoSyncDebug.warn("client-net", "container-state failed to find client ShellStateContainer around {}", payload.pos());
+        }
+    }
+
+    private static boolean applyContainerState(ClientLevel level, BlockPos pos, ShellState shellState) {
+        BlockPos[] candidates = new BlockPos[]{pos, pos.below(), pos.above()};
+
+        for (BlockPos candidate : candidates) {
+            BlockEntity blockEntity = level.getBlockEntity(candidate);
+
+            if (blockEntity instanceof ShellStateContainer container) {
+                NeoSyncDebug.info("client-net", "applying container-state to BE at {} class={}", candidate, blockEntity.getClass().getSimpleName());
+                container.setShellState(shellState);
+
+                if (blockEntity != null) {
+                    blockEntity.setChanged();
+                }
+
+                return true;
+            }
+        }
+
+        ShellStateContainer container = ShellStateContainer.find(level, pos);
+
+        if (container != null) {
+            NeoSyncDebug.info("client-net", "applying container-state through ShellStateContainer.find at {}", pos);
+            container.setShellState(shellState);
+            return true;
+        }
+
+        return false;
     }
 
     public static void onPlayerIsAlive(PlayerIsAlivePacket payload) {
@@ -102,6 +184,7 @@ public final class ClientNetworkHandler {
         }
 
         updated.deathTime = 0;
+        NeoSyncDebug.info("client-net", "player alive packet applied for {}", payload.playerUuid());
     }
 
     public static void onShellDestroyed(ShellDestroyedPacket payload) {
@@ -110,6 +193,8 @@ public final class ClientNetworkHandler {
         if (player == null) {
             return;
         }
+
+        NeoSyncDebug.info("client-net", "shell destroyed effects at {}", payload.pos());
 
         for (int i = 0; i < 3; ++i) {
             player.clientLevel.addDestroyBlockEffect(payload.pos(), Blocks.DEEPSLATE.defaultBlockState());

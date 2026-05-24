@@ -3,30 +3,31 @@ package com.breakinblocks.neosync.common.block.entity;
 import com.breakinblocks.neosync.api.event.PlayerSyncEvents;
 import com.breakinblocks.neosync.common.block.ShellStorageBlock;
 import com.breakinblocks.neosync.common.config.SyncConfig;
-import net.minecraft.world.level.block.state.BlockState;
+import com.breakinblocks.neosync.common.utils.BlockPosUtil;
+import com.breakinblocks.neosync.common.utils.NeoSyncDebug;
+import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.DyeItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.energy.IEnergyStorage;
-import com.breakinblocks.neosync.common.utils.BlockPosUtil;
-import java.lang.reflect.Method;
-import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
-import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
-import com.breakinblocks.neosync.common.block.AbstractShellContainerBlock;
+
+import java.lang.reflect.Method;
 
 public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity implements IEnergyStorage {
     private EntityState entityState;
@@ -50,7 +51,7 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
 
     @OnlyIn(Dist.CLIENT)
     public float getConnectorProgress(float tickDelta) {
-        return this.getBottomPart().map(x -> ((ShellStorageBlockEntity)x).connectorAnimator.getProgress(tickDelta)).orElse(0f);
+        return this.getBottomPart().map(x -> ((ShellStorageBlockEntity) x).connectorAnimator.getProgress(tickDelta)).orElse(0f);
     }
 
     @Override
@@ -59,11 +60,13 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
 
         BlockState liveState = world.getBlockState(pos);
 
-        if (!(liveState.getBlock() instanceof ShellStorageBlock) || !liveState.hasProperty(AbstractShellContainerBlock.HALF)) {
+        if (!(liveState.getBlock() instanceof ShellStorageBlock) || !liveState.hasProperty(ShellStorageBlock.HALF)) {
+            NeoSyncDebug.warn("storage", "server tick skipped because live state is not storage at {} live={}", NeoSyncDebug.describe(world, pos), liveState);
             return;
         }
 
-        if (!AbstractShellContainerBlock.isBottom(liveState)) {
+        if (!ShellStorageBlock.isBottom(liveState)) {
+            NeoSyncDebug.warn("storage", "server tick on upper half ignored at {}", NeoSyncDebug.describe(world, pos));
             return;
         }
 
@@ -74,9 +77,22 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
         boolean isReceivingRedstonePower = !infinitePower
                 && config.shellStorageAcceptsRedstone()
                 && ShellStorageBlock.isEnabled(state);
-        boolean hasEnergy = infinitePower ? true : this.storedEnergy > 0;
+        boolean hasEnergy = infinitePower || this.storedEnergy > 0;
         boolean isPowered = infinitePower || isReceivingRedstonePower || hasEnergy;
         boolean shouldBeOpen = isPowered && this.getBottomPart().map(x -> x.shell == null).orElse(true);
+
+        NeoSyncDebug.info(
+                "storage",
+                "server tick at {} shell={} energy={} infinitePower={} redstone={} hasEnergy={} powered={} shouldOpen={}",
+                NeoSyncDebug.describe(world, pos),
+                describeShell(this.shell),
+                this.storedEnergy,
+                infinitePower,
+                isReceivingRedstonePower,
+                hasEnergy,
+                isPowered,
+                shouldBeOpen
+        );
 
         ShellStorageBlock.setPowered(state, world, pos, isPowered);
         ShellStorageBlock.setOpen(state, world, pos, shouldBeOpen);
@@ -84,8 +100,10 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
         if (!infinitePower) {
             if (this.shell != null && !isPowered) {
                 ++this.ticksWithoutPower;
+                NeoSyncDebug.warn("storage", "unpowered shell ticking at {} ticksWithoutPower={}/{}", NeoSyncDebug.describe(world, pos), this.ticksWithoutPower, config.shellStorageMaxUnpoweredLifespan());
+
                 if (this.ticksWithoutPower >= config.shellStorageMaxUnpoweredLifespan()) {
-                    this.destroyShell((ServerLevel)world, pos);
+                    this.destroyShell((ServerLevel) world, pos);
                 }
             } else {
                 this.ticksWithoutPower = 0;
@@ -93,14 +111,20 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
         }
 
         if (!infinitePower && !isReceivingRedstonePower && hasEnergy && this.shell != null) {
+            int oldEnergy = this.storedEnergy;
             this.storedEnergy = (int) Mth.clamp(this.storedEnergy - config.shellStorageConsumption(), 0, config.shellStorageCapacity());
+
+            if (oldEnergy != this.storedEnergy) {
+                this.setChanged();
+                this.sync("storage-energy-drain");
+            }
         }
     }
 
     @Override
     public void onClientTick(Level world, BlockPos pos, BlockState state) {
         super.onClientTick(world, pos, state);
-        this.connectorAnimator.setValue(this.shell != null);
+        this.connectorAnimator.setValue(this.getShellState() != null);
         this.connectorAnimator.step();
 
         Vec3 shellCenter = NeoSyncSableCompat.projectBlockCenter(world, pos);
@@ -115,6 +139,7 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
                 && this.entityState != EntityState.LEAVING
                 && canAcceptPlayerClient(state)
                 && isNearStorageEntry(world, pos, localPlayer)) {
+            NeoSyncDebug.info("storage", "client tick fallback collision at {} player={} state={}", NeoSyncDebug.describe(world, pos), localPlayer.getName().getString(), this.entityState);
             this.onEntityCollisionClient(localPlayer, state);
         }
     }
@@ -126,6 +151,10 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
         }
 
         if (!canAcceptPlayerClient(state)) {
+            if (this.entityState != EntityState.NONE) {
+                NeoSyncDebug.info("storage", "client collision reset because storage cannot accept player at {} oldState={}", NeoSyncDebug.describe(entity.level(), this.worldPosition), this.entityState);
+            }
+
             this.entityState = EntityState.NONE;
             return;
         }
@@ -140,15 +169,33 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
                 state.getValue(ShellStorageBlock.FACING).getOpposite()
         );
 
+        boolean isInside = BlockPosUtil.isEntityInside(entity, shellCenter);
+        NeoSyncDebug.info(
+                "storage",
+                "client collision at {} player={} local={} screenClear={} entityState={} inside={} center={} outside={}",
+                NeoSyncDebug.describe(entity.level(), this.worldPosition),
+                player.getName().getString(),
+                isLocalPlayer,
+                hasNoScreen,
+                this.entityState,
+                isInside,
+                shellCenter,
+                shellOutside
+        );
+
         if (this.entityState == EntityState.NONE) {
-            boolean isInside = BlockPosUtil.isEntityInside(entity, shellCenter);
-            PlayerSyncEvents.ShellSelectionFailureReason failureReason = !isInside && isLocalPlayer
+            if (!isInside) {
+                return;
+            }
+
+            PlayerSyncEvents.ShellSelectionFailureReason failureReason = isLocalPlayer
                     ? PlayerSyncEvents.ALLOW_SHELL_SELECTION.invoker().allowShellSelection(player, this)
                     : null;
 
-            this.entityState = isInside || failureReason != null ? EntityState.CHILLING : EntityState.ENTERING;
+            this.entityState = failureReason != null ? EntityState.CHILLING : EntityState.ENTERING;
 
             if (failureReason != null) {
+                NeoSyncDebug.warn("storage", "client shell selection denied at {} reason={}", NeoSyncDebug.describe(entity.level(), this.worldPosition), failureReason.toText().getString());
                 player.displayClientMessage(failureReason.toText(), true);
             }
         } else if (this.entityState != EntityState.CHILLING && hasNoScreen) {
@@ -164,6 +211,7 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
                 && isLocalPlayer
                 && hasNoClientScreen()
                 && BlockPosUtil.isEntityInside(entity, shellCenter)) {
+            NeoSyncDebug.info("storage", "opening shell selector for storage at {}", NeoSyncDebug.describe(entity.level(), this.worldPosition));
             openShellSelectorClient(
                     this.worldPosition,
                     () -> this.entityState = EntityState.LEAVING,
@@ -174,20 +222,20 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
 
     @OnlyIn(Dist.CLIENT)
     private static boolean isLocalClientPlayer(Entity entity) {
-        Object result = invokeClientHook("isLocalPlayer", new Class<?>[]{Entity.class}, entity);
+        Object result = invokeClientHook("isLocalPlayer", new Class[]{Entity.class}, entity);
         return result instanceof Boolean value && value;
     }
 
     @OnlyIn(Dist.CLIENT)
     private static boolean hasNoClientScreen() {
-        Object result = invokeClientHook("hasNoScreen", new Class<?>[0]);
+        Object result = invokeClientHook("hasNoScreen", new Class[0]);
         return result instanceof Boolean value && value;
     }
 
     @OnlyIn(Dist.CLIENT)
     @Nullable
     private static Entity getLocalClientPlayer() {
-        Object result = invokeClientHook("getLocalPlayer", new Class<?>[0]);
+        Object result = invokeClientHook("getLocalPlayer", new Class[0]);
         return result instanceof Entity entity ? entity : null;
     }
 
@@ -203,7 +251,7 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
     }
 
     @OnlyIn(Dist.CLIENT)
-    private static Object invokeClientHook(String methodName, Class<?>[] parameterTypes, Object... args) {
+    private static Object invokeClientHook(String methodName, Class[] parameterTypes, Object... args) {
         try {
             Class<?> hooksClass = Class.forName("com.breakinblocks.neosync.client.block.entity.ShellStorageClientHooks");
             Method method = hooksClass.getMethod(methodName, parameterTypes);
@@ -221,21 +269,25 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
 
         ItemStack stack = player.getItemInHand(hand);
         Item item = stack.getItem();
+
         if (stack.getCount() > 0 && item instanceof DyeItem dye) {
+            NeoSyncDebug.info("storage", "dyed storage at {} player={} color={}", NeoSyncDebug.describe(world, pos), player.getName().getString(), dye.getDyeColor());
             stack.shrink(1);
             this.color = dye.getDyeColor();
+            this.forceShellStateUpdate("storage-dye");
         }
+
         return InteractionResult.SUCCESS;
     }
 
-    // IEnergyStorage implementation
     @Override
     public int receiveEnergy(int maxReceive, boolean simulate) {
         if (SyncConfig.getInstance().shellStorageConsumption() == 0) {
             return 0;
         }
 
-        ShellStorageBlockEntity bottom = (ShellStorageBlockEntity)this.getBottomPart().orElse(null);
+        ShellStorageBlockEntity bottom = (ShellStorageBlockEntity) this.getBottomPart().orElse(null);
+
         if (bottom == null) {
             return 0;
         }
@@ -244,8 +296,12 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
         int maxEnergy = Mth.clamp(capacity - bottom.storedEnergy, 0, capacity);
         int inserted = Mth.clamp(maxReceive, 0, maxEnergy);
 
-        if (!simulate) {
+        if (!simulate && inserted > 0) {
+            int oldEnergy = bottom.storedEnergy;
             bottom.storedEnergy += inserted;
+            NeoSyncDebug.info("storage", "receiveEnergy at {} inserted={} energy={} -> {}", NeoSyncDebug.describe(bottom.level, bottom.worldPosition), inserted, oldEnergy, bottom.storedEnergy);
+            bottom.setChanged();
+            bottom.sync("storage-energy-receive");
         }
 
         return inserted;
@@ -254,18 +310,24 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
     @OnlyIn(Dist.CLIENT)
     private static boolean isNearStorageEntry(Level world, BlockPos pos, Entity entity) {
         Vec3 shellCenter = NeoSyncSableCompat.projectBlockCenter(world, pos);
-        return NeoSyncSableCompat.distanceSquared(world, entity.position(), shellCenter) < 0.35D * 0.35D;
+        return NeoSyncSableCompat.distanceSquared(world, entity.position(), shellCenter) < 0.25D * 0.25D;
     }
 
     @OnlyIn(Dist.CLIENT)
     private boolean canAcceptPlayerClient(BlockState state) {
-        if (!ShellStorageBlock.isOpen(state)) {
+        boolean empty = this.getBottomPart()
+                .map(part -> part.getShellState() == null)
+                .orElse(this.getShellState() == null);
+
+        if (!empty) {
             return false;
         }
 
-        return this.getBottomPart()
-                .map(part -> part.getShellState() == null)
-                .orElse(this.getShellState() == null);
+        if (!ShellStorageBlock.isOpen(state)) {
+            NeoSyncDebug.warn("storage", "client storage accepts because empty, but local visual state is closed/stale at {} state={}", NeoSyncDebug.describe(this.level, this.worldPosition), state);
+        }
+
+        return true;
     }
 
     @Override
@@ -275,7 +337,7 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
 
     @Override
     public int getEnergyStored() {
-        return this.getBottomPart().map(x -> ((ShellStorageBlockEntity)x).storedEnergy).orElse(0);
+        return this.getBottomPart().map(x -> ((ShellStorageBlockEntity) x).storedEnergy).orElse(0);
     }
 
     @Override
@@ -313,5 +375,4 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
         CHILLING,
         LEAVING
     }
-
 }

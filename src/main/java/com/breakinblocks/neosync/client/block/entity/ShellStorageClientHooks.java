@@ -1,6 +1,7 @@
 package com.breakinblocks.neosync.client.block.entity;
 
 import com.breakinblocks.neosync.client.gui.ShellSelectorGUI;
+import com.breakinblocks.neosync.common.utils.NeoSyncDebug;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
@@ -19,6 +20,7 @@ public final class ShellStorageClientHooks {
     }
 
     public static void openShellSelector(BlockPos currentContainerPos, Runnable onCloseCallback, Runnable onRemovedCallback) {
+        NeoSyncDebug.info("storage-client-hook", "opening shell selector currentContainer={}", currentContainerPos);
         Minecraft.getInstance().setScreen(new ShellSelectorGUI(currentContainerPos, onCloseCallback, onRemovedCallback));
     }
 

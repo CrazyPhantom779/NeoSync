@@ -1,5 +1,7 @@
 package com.breakinblocks.neosync.client.entity;
 
+import com.breakinblocks.neosync.api.shell.ShellState;
+import com.breakinblocks.neosync.common.utils.NeoSyncDebug;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.mojang.authlib.GameProfile;
@@ -13,15 +15,17 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.player.PlayerModelPart;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
-import com.breakinblocks.neosync.api.shell.ShellState;
-import com.breakinblocks.neosync.integration.dragonsurvival.NeoSyncDragonSurvivalCompat;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @OnlyIn(Dist.CLIENT)
 public class ShellEntity extends RemotePlayer {
-    private static final Cache<UUID, PlayerInfo> PLAYER_ENTRY_CACHE;
+    private static final Cache<UUID, PlayerInfo> PLAYER_ENTRY_CACHE = CacheBuilder.newBuilder()
+            .initialCapacity(20)
+            .maximumSize(40)
+            .expireAfterAccess(20, TimeUnit.MINUTES)
+            .build();
 
     public boolean isActive;
     public float pitchProgress;
@@ -38,19 +42,23 @@ public class ShellEntity extends RemotePlayer {
         this.isActive = false;
         this.pitchProgress = 0;
         this.state = state;
-        state.getInventory().copyTo(this.getInventory());
+        this.refreshFromState();
         this.playerEntry = getPlayerEntry(state);
         this.moveTo(state.getPos().getX() + 0.5, state.getPos().getY(), state.getPos().getZ() + 0.5, 0, 0);
-
-        // Initialize cape position
         this.xCloakO = this.xCloak = getX();
         this.yCloakO = this.yCloak = getY();
         this.zCloakO = this.zCloak = getZ();
+        NeoSyncDebug.info("shell-entity", "created shell entity state={} playerEntry={}", state.getUuid(), this.playerEntry != null);
 
         if (this.onInitialized != null) {
             this.onInitialized.run();
             this.onInitialized = null;
         }
+    }
+
+    public void refreshFromState() {
+        this.state.getInventory().copyTo(this.getInventory());
+        NeoSyncDebug.info("shell-entity", "refreshFromState state={} progress={} pos={}", this.state.getUuid(), this.state.getProgress(), this.state.getPos());
     }
 
     public void onInitialized(Runnable runnable) {
@@ -61,17 +69,13 @@ public class ShellEntity extends RemotePlayer {
         }
     }
 
-    public void refreshFromState() {
-        this.state.getInventory().copyTo(this.getInventory());
-    }
-
     public ShellState getState() {
         return this.state;
     }
 
     @Override
     protected void dropAllDeathLoot(ServerLevel level, DamageSource damageSource) {
-        // Don't drop items when shell is destroyed
+        // Don't drop items when shell is destroyed.
     }
 
     @Override
@@ -101,11 +105,14 @@ public class ShellEntity extends RemotePlayer {
 
     private static PlayerInfo getPlayerEntry(ShellState state) {
         PlayerInfo entry = PLAYER_ENTRY_CACHE.getIfPresent(state.getOwnerUuid());
+
         if (entry == null) {
             Minecraft client = Minecraft.getInstance();
             ClientPacketListener networkHandler = client.getConnection();
+
             if (networkHandler != null) {
                 entry = networkHandler.getPlayerInfo(state.getOwnerUuid());
+
                 if (entry == null) {
                     entry = networkHandler.getPlayerInfo(state.getOwnerName());
                 }
@@ -115,14 +122,7 @@ public class ShellEntity extends RemotePlayer {
                 PLAYER_ENTRY_CACHE.put(state.getOwnerUuid(), entry);
             }
         }
-        return entry;
-    }
 
-    static {
-        PLAYER_ENTRY_CACHE = CacheBuilder.newBuilder()
-                .initialCapacity(20)
-                .maximumSize(40)
-                .expireAfterAccess(20, TimeUnit.MINUTES)
-                .build();
+        return entry;
     }
 }

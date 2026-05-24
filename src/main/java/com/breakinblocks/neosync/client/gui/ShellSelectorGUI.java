@@ -1,39 +1,37 @@
 package com.breakinblocks.neosync.client.gui;
 
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import com.breakinblocks.neosync.api.shell.ShellStateContainer;
+import com.breakinblocks.neosync.api.shell.ClientShell;
+import com.breakinblocks.neosync.api.shell.ShellState;
 import com.breakinblocks.neosync.client.gl.MSAAFramebuffer;
 import com.breakinblocks.neosync.client.gui.hud.HudController;
 import com.breakinblocks.neosync.client.gui.widget.ArrowButtonWidget;
 import com.breakinblocks.neosync.client.gui.widget.CrossButtonWidget;
 import com.breakinblocks.neosync.client.gui.widget.PageDisplayWidget;
 import com.breakinblocks.neosync.client.gui.widget.ShellSelectorButtonWidget;
-import com.breakinblocks.neosync.api.shell.Shell;
-import com.breakinblocks.neosync.api.shell.ShellState;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
+import com.breakinblocks.neosync.client.utils.render.ColorUtil;
+import com.breakinblocks.neosync.common.utils.IdentifierUtil;
+import com.breakinblocks.neosync.common.utils.NeoSyncDebug;
+import com.breakinblocks.neosync.common.utils.math.Radians;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.resources.ResourceLocation;
-import com.breakinblocks.neosync.client.utils.render.ColorUtil;
-import com.breakinblocks.neosync.common.utils.IdentifierUtil;
-import com.breakinblocks.neosync.common.utils.math.Radians;
-import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.DyeColor;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.Nullable;
-import com.breakinblocks.neosync.api.shell.ClientShell;
-import java.util.UUID;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -45,7 +43,12 @@ public class ShellSelectorGUI extends Screen {
     private static final double MENU_RADIUS = 0.3F;
     private static final int BACKGROUND_COLOR = ColorUtil.fromDyeColor(DyeColor.BLACK, 0.3F);
     private static final Component TITLE = Component.translatable("gui.neosync.default.cross_button.title");
-    private static final Collection<Component> ARROW_TITLES = List.of(Component.translatable("gui.neosync.shell_selector.up.title"), Component.translatable("gui.neosync.shell_selector.right.title"), Component.translatable("gui.neosync.shell_selector.down.title"), Component.translatable("gui.neosync.shell_selector.left.title"));
+    private static final Collection<Component> ARROW_TITLES = List.of(
+            Component.translatable("gui.neosync.shell_selector.up.title"),
+            Component.translatable("gui.neosync.shell_selector.right.title"),
+            Component.translatable("gui.neosync.shell_selector.down.title"),
+            Component.translatable("gui.neosync.shell_selector.left.title")
+    );
 
     private final Runnable onCloseCallback;
     private final Runnable onRemovedCallback;
@@ -73,27 +76,32 @@ public class ShellSelectorGUI extends Screen {
     @Override
     public void init() {
         LocalPlayer player = Minecraft.getInstance().player;
+
         if (player == null) {
+            NeoSyncDebug.warn("selector", "init closed because local player was null");
             this.onClose();
             return;
         }
-        ResourceLocation selectedWorld = player.level().dimension().location();
 
+        ResourceLocation selectedWorld = player.level().dimension().location();
         ClientShell clientShell = (ClientShell) player;
         UUID currentShellUuid = clientShell.neosync$getCurrentShellUuid();
-
-        List<ShellState> shellStates = clientShell
-                .getAvailableShellStates()
-                .filter(shellState -> currentShellUuid == null || !shellState.getUuid().equals(currentShellUuid))
-                .filter(shellState -> !isCurrentContainerOption(player, shellState))
+        List<ShellState> allShellStates = clientShell.getAvailableShellStates().collect(Collectors.toList());
+        List<ShellState> shellStates = allShellStates.stream()
+                .filter(shellState -> !isCurrentContainerOption(currentShellUuid, shellState))
                 .collect(Collectors.toList());
+
+        NeoSyncDebug.info("selector", "init currentContainer={} currentShellUuid={} allStates={} visibleStates={}", this.currentContainerPos, currentShellUuid, allShellStates.size(), shellStates.size());
+
+        for (ShellState state : allShellStates) {
+            NeoSyncDebug.info("selector", "state candidate uuid={} pos={} world={} progress={} filtered={}", state.getUuid(), state.getPos(), state.getWorld(), state.getProgress(), isCurrentContainerOption(currentShellUuid, state));
+        }
 
         this.wasClosed = false;
         this.arrowButtons = createArrowButtons(this.width, this.height, ARROW_TITLES, List.of(this::previousSection, this::nextPage, this::nextSection, this::previousPage));
         this.crossButton = createCrossButton(this.width, this.height, this::onClose);
         this.pageDisplay = createPageDisplay(this.width, this.height, shellStates.stream(), selectedWorld, MAX_SLOTS, this::onPageChange);
         Stream.concat(this.arrowButtons.stream(), Stream.of(this.crossButton, this.pageDisplay)).forEach(this::addRenderableWidget);
-
         HudController.hide();
     }
 
@@ -123,12 +131,10 @@ public class ShellSelectorGUI extends Screen {
 
     private static PageDisplayWidget<ResourceLocation, ShellState> createPageDisplay(int screenWidth, int screenHeight, Stream<ShellState> data, ResourceLocation defaultPage, int entriesPerPage, BiConsumer<PageDisplayWidget<ResourceLocation, ShellState>, PageDisplayWidget<ResourceLocation, ShellState>.Page> onChange) {
         final float FONT_HEIGHT = 1 / 30F;
-
         float cX = screenWidth / 2F;
         float cY = screenHeight / 2F;
         float scale = screenHeight * FONT_HEIGHT / Minecraft.getInstance().font.lineHeight;
-
-        return new PageDisplayWidget<ResourceLocation, ShellState>(cX, cY, scale, data, ShellState::getWorld, IdentifierUtil::prettifyAsText, defaultPage, entriesPerPage, onChange);
+        return new PageDisplayWidget<>(cX, cY, scale, data, ShellState::getWorld, IdentifierUtil::prettifyAsText, defaultPage, entriesPerPage, onChange);
     }
 
     private static List<ArrowButtonWidget> createArrowButtons(int screenWidth, int screenHeight, Iterable<Component> arrowTitles, Iterable<Runnable> arrowActions) {
@@ -139,7 +145,7 @@ public class ShellSelectorGUI extends Screen {
 
         float cX = screenWidth / 2F;
         float cY = screenHeight / 2F;
-        float r = screenHeight * (float)MENU_RADIUS * (1F + ARROW_SPACING);
+        float r = screenHeight * (float) MENU_RADIUS * (1F + ARROW_SPACING);
         float arrowHeight = screenHeight * ARROW_HEIGHT;
         float arrowWidth = arrowHeight * ARROW_WIDTH;
         float thickness = screenHeight * ARROW_THICKNESS;
@@ -150,6 +156,7 @@ public class ShellSelectorGUI extends Screen {
         for (ArrowButtonWidget.ArrowType arrowType : ArrowButtonWidget.ArrowType.values()) {
             float x;
             float y;
+
             if (arrowType.isVertical()) {
                 x = screenWidth / 2F - arrowWidth / 2F;
                 y = cY + r * (arrowType.isDown() ? 1 : -1) + (arrowType.isDown() ? 0 : -arrowHeight);
@@ -157,6 +164,7 @@ public class ShellSelectorGUI extends Screen {
                 x = cX + r * (arrowType.isRight() ? 1 : -1) + (arrowType.isRight() ? 0 : -arrowHeight);
                 y = screenHeight / 2F - arrowWidth / 2F;
             }
+
             arrowButtons.add(new ArrowButtonWidget(x, y, arrowWidth, arrowHeight, arrowType, thickness, descriptions.next(), actions.next()));
         }
 
@@ -172,8 +180,6 @@ public class ShellSelectorGUI extends Screen {
         float y = screenHeight * CROSS_MARGIN;
         float x = screenWidth - y - width;
         float thickness = screenHeight * CROSS_THICKNESS;
-
-        //noinspection SuspiciousNameCombination
         return new CrossButtonWidget(x, y, width, width, thickness, onClose);
     }
 
@@ -197,9 +203,11 @@ public class ShellSelectorGUI extends Screen {
         for (GuiEventListener child : this.children()) {
             if (child instanceof NarratableEntry narratableEntry && narratableEntry.narrationPriority() != NarratableEntry.NarrationPriority.NONE) {
                 Component tooltipText = child instanceof TooltipProvider tooltipProvider ? tooltipProvider.getTooltip() : null;
+
                 if (tooltipText != null) {
                     guiGraphics.renderTooltip(font, tooltipText, mouseX, mouseY);
                 }
+
                 return;
             }
         }
@@ -240,6 +248,7 @@ public class ShellSelectorGUI extends Screen {
         }
 
         List<ShellState> content = page.content;
+        NeoSyncDebug.info("selector", "page change contentSize={} currentContainer={}", content.size(), this.currentContainerPos);
         this.shellButtons = createShellButtons(this.width, this.height, Math.max(content.size(), 1));
         this.shellButtons.forEach(this::addRenderableWidget);
 
@@ -250,18 +259,12 @@ public class ShellSelectorGUI extends Screen {
         }
     }
 
-    private boolean isCurrentContainerOption(LocalPlayer player, ShellState shellState) {
+    private boolean isCurrentContainerOption(@Nullable UUID currentShellUuid, ShellState shellState) {
         if (this.currentContainerPos != null && isSameStorageBlock(shellState.getPos(), this.currentContainerPos)) {
             return true;
         }
 
-        // if (player instanceof ClientShell clientShell) {
-        //     UUID currentShellUuid = clientShell.neosync$getCurrentShellUuid();
-
-        //     return currentShellUuid != null && shellState.getUuid().equals(currentShellUuid);
-        // }
-
-        return false;
+        return currentShellUuid != null && shellState.getUuid().equals(currentShellUuid);
     }
 
     private static boolean isSameStorageBlock(BlockPos shellPos, BlockPos currentContainerPos) {
@@ -290,10 +293,13 @@ public class ShellSelectorGUI extends Screen {
 
     @Override
     public void onClose() {
+        NeoSyncDebug.info("selector", "onClose wasClosed={} currentContainer={}", this.wasClosed, this.currentContainerPos);
         HudController.restore();
+
         if (this.onCloseCallback != null) {
             this.onCloseCallback.run();
         }
+
         this.wasClosed = true;
         super.onClose();
     }
@@ -301,6 +307,8 @@ public class ShellSelectorGUI extends Screen {
     @Override
     public void removed() {
         super.removed();
+        NeoSyncDebug.info("selector", "removed wasClosed={} currentContainer={}", this.wasClosed, this.currentContainerPos);
+
         if (!this.wasClosed && this.onRemovedCallback != null) {
             this.onRemovedCallback.run();
         }

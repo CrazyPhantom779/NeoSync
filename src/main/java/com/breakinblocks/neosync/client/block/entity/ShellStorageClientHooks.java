@@ -4,6 +4,7 @@ import com.breakinblocks.neosync.client.gui.ShellSelectorGUI;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
+import org.jetbrains.annotations.Nullable;
 
 public final class ShellStorageClientHooks {
     private ShellStorageClientHooks() {
@@ -19,5 +20,10 @@ public final class ShellStorageClientHooks {
 
     public static void openShellSelector(BlockPos currentContainerPos, Runnable onCloseCallback, Runnable onRemovedCallback) {
         Minecraft.getInstance().setScreen(new ShellSelectorGUI(currentContainerPos, onCloseCallback, onRemovedCallback));
+    }
+
+    @Nullable
+    public static Entity getLocalPlayer() {
+        return Minecraft.getInstance().player;
     }
 }

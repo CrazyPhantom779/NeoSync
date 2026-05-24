@@ -189,6 +189,7 @@ public class ShellSelectorButtonWidget extends AbstractWidget {
         final float SHELL_SCALE = 0.365F;
 
         ShellEntity shellEntity = ClientShellEntities.get(this.shell);
+        shellEntity.refreshFromState();
         shellEntity.pitchProgress = 0;
         shellEntity.isActive = this.shell.getProgress() >= ShellState.PROGRESS_DONE;
 

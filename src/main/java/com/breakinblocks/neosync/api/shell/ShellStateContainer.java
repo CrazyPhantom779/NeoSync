@@ -4,6 +4,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -15,8 +18,21 @@ public interface ShellStateContainer {
      */
     @Nullable
     static ShellStateContainer find(Level world, BlockPos pos) {
-        BlockEntity blockEntity = world.getBlockEntity(pos);
+        BlockPos containerPos = getContainerBottomPos(world, pos);
+        BlockEntity blockEntity = world.getBlockEntity(containerPos);
+
         return blockEntity instanceof ShellStateContainer container ? container : null;
+    }
+
+    static BlockPos getContainerBottomPos(Level world, BlockPos pos) {
+        BlockState state = world.getBlockState(pos);
+
+        if (state.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)
+                && state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.UPPER) {
+            return pos.below();
+        }
+
+        return pos;
     }
 
     /**
@@ -25,9 +41,11 @@ public interface ShellStateContainer {
     @Nullable
     static ShellStateContainer find(Level world, ShellState state) {
         ShellStateContainer container = find(world, state.getPos());
+
         if (container != null && container.getShellState() == state) {
             return container;
         }
+
         return null;
     }
 
@@ -46,4 +64,3 @@ public interface ShellStateContainer {
         return state == null ? null : state.getColor();
     }
 }
-

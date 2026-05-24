@@ -35,6 +35,8 @@ import net.neoforged.api.distmarker.OnlyIn;
 import com.breakinblocks.neosync.common.utils.ItemUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import net.minecraft.world.level.block.Block;
+import com.breakinblocks.neosync.common.block.AbstractShellContainerBlock;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -61,9 +63,15 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
         this.doorAnimator = new BooleanAnimator(AbstractShellContainerBlock.isOpen(state));
     }
 
-
     @Override
     public void setShellState(ShellState shell) {
+        AbstractShellContainerBlockEntity target = this.getBottomPart().orElse(this);
+
+        if (target != this) {
+            target.setShellState(shell);
+            return;
+        }
+
         this.shell = shell;
 
         if (shell != null && this.worldPosition != null) {
@@ -72,11 +80,19 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
 
         if (this.level != null && !this.level.isClientSide && this.worldPosition != null && this.getBlockState() != null) {
             this.checkShellState(this.level, this.worldPosition, this.getBlockState());
+            this.sync();
+            this.setChanged();
         }
     }
 
     @Override
     public ShellState getShellState() {
+        AbstractShellContainerBlockEntity bottom = this.getBottomPart().orElse(this);
+
+        if (bottom != this) {
+            return bottom.getShellState();
+        }
+
         return this.shell;
     }
 
@@ -205,7 +221,9 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
         if (this.shell != null) {
             this.shell.drop(world, pos);
             new ShellDestroyedPacket(pos).send(world, pos, 32);
-            this.shell = null;
+            this.setShellState(null);
+            this.setChanged();
+            this.sync();
         }
     }
 
@@ -382,8 +400,20 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
     }
 
     protected void sync() {
-        if (this.level instanceof ServerLevel serverWorld) {
-            serverWorld.getChunkSource().blockChanged(this.worldPosition);
+        if (!(this.level instanceof ServerLevel serverWorld)) {
+            return;
         }
+
+        syncBlockEntity(serverWorld, this.worldPosition);
+
+        BlockPos otherPartPos = this.worldPosition.relative(AbstractShellContainerBlock.getDirectionTowardsAnotherPart(this.getBlockState()));
+        syncBlockEntity(serverWorld, otherPartPos);
+    }
+
+    private static void syncBlockEntity(ServerLevel world, BlockPos pos) {
+        BlockState state = world.getBlockState(pos);
+
+        world.getChunkSource().blockChanged(pos);
+        world.sendBlockUpdated(pos, state, state, 3);
     }
 }

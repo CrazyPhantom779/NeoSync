@@ -122,7 +122,9 @@ abstract class ServerPlayerEntityMixin extends Player implements ServerShell, Ki
             }
         }
 
-        BlockPos currentPos = currentContainerPos == null ? this.blockPosition() : currentContainerPos;
+        BlockPos currentPos = currentContainerPos == null
+                ? this.blockPosition()
+                : ShellStateContainer.getContainerBottomPos(currentWorld, currentContainerPos);
 
         if (!this.canBeApplied(state) || state.getProgress() < ShellState.PROGRESS_DONE) {
             return Either.right(PlayerSyncEvents.SyncFailureReason.INVALID_SHELL);
@@ -146,7 +148,7 @@ abstract class ServerPlayerEntityMixin extends Player implements ServerShell, Ki
             return Either.right(PlayerSyncEvents.SyncFailureReason.INVALID_TARGET_LOCATION);
         }
 
-        BlockPos targetPos = state.getPos();
+        BlockPos targetPos = ShellStateContainer.getContainerBottomPos(targetWorld, state.getPos());
         LevelChunk targetChunk = targetWorld.getChunk(targetPos.getX() >> 4, targetPos.getZ() >> 4);
         ShellStateContainer targetShellContainer = targetChunk == null ? null : ShellStateContainer.find(targetWorld, targetPos);
         if (targetShellContainer == null) {

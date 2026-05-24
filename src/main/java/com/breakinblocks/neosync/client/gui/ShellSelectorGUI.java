@@ -251,25 +251,17 @@ public class ShellSelectorGUI extends Screen {
     }
 
     private boolean isCurrentContainerOption(LocalPlayer player, ShellState shellState) {
-        // Always trust the exact storage position passed by ShellStorageBlockEntity first.
-        // Sable can make the player's visible dimension/position differ from the shell state's
-        // stored/internal world data, so do not world-check before this.
         if (this.currentContainerPos != null && isSameStorageBlock(shellState.getPos(), this.currentContainerPos)) {
             return true;
         }
 
-        if (!shellState.getWorld().equals(player.level().dimension().location())) {
-            return false;
-        }
+        // if (player instanceof ClientShell clientShell) {
+        //     UUID currentShellUuid = clientShell.neosync$getCurrentShellUuid();
 
-        UUID currentShellUuid = ((ClientShell) player).neosync$getCurrentShellUuid();
+        //     return currentShellUuid != null && shellState.getUuid().equals(currentShellUuid);
+        // }
 
-        if (currentShellUuid != null && shellState.getUuid().equals(currentShellUuid)) {
-            return true;
-        }
-
-        Vec3 shellCenter = NeoSyncSableCompat.projectBlockCenter(player.level(), shellState.getPos());
-        return NeoSyncSableCompat.distanceSquared(player.level(), player.position(), shellCenter) < 0.75D * 0.75D;
+        return false;
     }
 
     private static boolean isSameStorageBlock(BlockPos shellPos, BlockPos currentContainerPos) {

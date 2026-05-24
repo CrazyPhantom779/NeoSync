@@ -28,9 +28,13 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
     public void onServerTick(Level world, BlockPos pos, BlockState state) {
         super.onServerTick(world, pos, state);
 
-        if (ShellConstructorBlock.isOpen(state)) {
-            Vec3 shellCenter = NeoSyncSableCompat.projectBlockCenter(world, pos);
-            ShellConstructorBlock.setOpen(state, world, pos, BlockPosUtil.hasPlayerInside(shellCenter, world));
+        Vec3 shellCenter = NeoSyncSableCompat.projectBlockCenter(world, pos);
+        boolean hasPlayerInside = BlockPosUtil.hasPlayerInside(shellCenter, world);
+
+        if (ShellConstructorBlock.isOpen(state) != hasPlayerInside) {
+            ShellConstructorBlock.setOpen(state, world, pos, hasPlayerInside);
+            this.setChanged();
+            this.sync();
         }
     }
 
@@ -67,7 +71,7 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
             }
 
             player.hurt(FingerstickDamageSource.fingerstick(player), damage);
-            this.shell = ShellState.empty(serverPlayer, this.worldPosition);
+            this.setShellState(ShellState.empty(serverPlayer, this.worldPosition));
             ShellConstructorBlock.setOpen(this.getBlockState(), this.level, this.worldPosition, true);
             if (isCreative && config.enableInstantShellConstruction()) {
                 this.shell.setProgress(ShellState.PROGRESS_DONE);
@@ -93,6 +97,10 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
             bottom.shell.setProgress(bottom.shell.getProgress() + (float) accepted / capacity);
             bottom.setChanged();
             bottom.sync();
+
+            if (bottom.level != null && !bottom.level.isClientSide && bottom.worldPosition != null && bottom.getBlockState() != null) {
+                bottom.setShellState(bottom.shell);
+            }
         }
 
         return accepted;

@@ -13,6 +13,7 @@ import com.breakinblocks.neosync.client.model.AbstractShellContainerModel;
 import com.breakinblocks.neosync.client.model.DoubleBlockModel;
 import com.breakinblocks.neosync.common.block.entity.AbstractShellContainerBlockEntity;
 import com.breakinblocks.neosync.client.entity.ShellEntity;
+import com.breakinblocks.neosync.common.block.AbstractShellContainerBlock;
 
 @OnlyIn(Dist.CLIENT)
 public abstract class AbstractShellContainerBlockEntityRenderer<T extends AbstractShellContainerBlockEntity> extends DoubleBlockEntityRenderer<T> {
@@ -23,8 +24,19 @@ public abstract class AbstractShellContainerBlockEntityRenderer<T extends Abstra
     @Override
     public void render(T blockEntity, float tickDelta, PoseStack matrices, MultiBufferSource vertexConsumers, int light, int overlay) {
         super.render(blockEntity, tickDelta, matrices, vertexConsumers, light, overlay);
-        if (blockEntity.getShellState() != null) {
-            this.renderShell(blockEntity.getShellState(), blockEntity, tickDelta, this.getBlockState(blockEntity), matrices, vertexConsumers, light);
+
+        BlockState blockState = this.getBlockState(blockEntity);
+
+        // Only render the shell entity from the lower half.
+        // The block model itself still renders both halves through DoubleBlockModel.
+        if (!AbstractShellContainerBlock.isBottom(blockState)) {
+            return;
+        }
+
+        ShellState shellState = blockEntity.getShellState();
+
+        if (shellState != null) {
+            this.renderShell(shellState, blockEntity, tickDelta, blockState, matrices, vertexConsumers, light);
         }
     }
 

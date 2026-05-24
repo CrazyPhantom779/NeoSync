@@ -61,6 +61,10 @@ public class ShellEntity extends RemotePlayer {
         }
     }
 
+    public void refreshFromState() {
+        this.state.getInventory().copyTo(this.getInventory());
+    }
+
     public ShellState getState() {
         return this.state;
     }

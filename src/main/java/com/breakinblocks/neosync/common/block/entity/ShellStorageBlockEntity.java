@@ -25,6 +25,7 @@ import com.breakinblocks.neosync.common.utils.BlockPosUtil;
 import java.lang.reflect.Method;
 import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 
 public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity implements IEnergyStorage {
     private EntityState entityState;
@@ -88,15 +89,31 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
         super.onClientTick(world, pos, state);
         this.connectorAnimator.setValue(this.shell != null);
         this.connectorAnimator.step();
+
+        Vec3 shellCenter = NeoSyncSableCompat.projectBlockCenter(world, pos);
+
         if (this.entityState == EntityState.LEAVING || this.entityState == EntityState.CHILLING) {
-            Vec3 shellCenter = NeoSyncSableCompat.projectBlockCenter(world, pos);
             this.entityState = BlockPosUtil.hasPlayerInside(shellCenter, world) ? this.entityState : EntityState.NONE;
+        }
+
+        Entity localPlayer = getLocalClientPlayer();
+
+        if (localPlayer != null
+                && this.entityState != EntityState.LEAVING
+                && canAcceptPlayerClient(state)
+                && isNearStorageEntry(world, pos, localPlayer)) {
+            this.onEntityCollisionClient(localPlayer, state);
         }
     }
 
     @OnlyIn(Dist.CLIENT)
     public void onEntityCollisionClient(Entity entity, BlockState state) {
         if (!(entity instanceof Player player)) {
+            return;
+        }
+
+        if (!canAcceptPlayerClient(state)) {
+            this.entityState = EntityState.NONE;
             return;
         }
 
@@ -152,6 +169,13 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
     private static boolean hasNoClientScreen() {
         Object result = invokeClientHook("hasNoScreen", new Class<?>[0]);
         return result instanceof Boolean value && value;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    @Nullable
+    private static Entity getLocalClientPlayer() {
+        Object result = invokeClientHook("getLocalPlayer", new Class<?>[0]);
+        return result instanceof Entity entity ? entity : null;
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -212,6 +236,23 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
         }
 
         return inserted;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static boolean isNearStorageEntry(Level world, BlockPos pos, Entity entity) {
+        Vec3 shellCenter = NeoSyncSableCompat.projectBlockCenter(world, pos);
+        return NeoSyncSableCompat.distanceSquared(world, entity.position(), shellCenter) < 0.35D * 0.35D;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private boolean canAcceptPlayerClient(BlockState state) {
+        if (!ShellStorageBlock.isOpen(state)) {
+            return false;
+        }
+
+        return this.getBottomPart()
+                .map(part -> part.getShellState() == null)
+                .orElse(this.getShellState() == null);
     }
 
     @Override

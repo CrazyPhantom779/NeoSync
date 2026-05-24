@@ -244,13 +244,25 @@ public class ShellSelectorGUI extends Screen {
         }
     }
 
-    private static boolean isCurrentContainerOption(LocalPlayer player, ShellState shellState) {
+    private boolean isCurrentContainerOption(LocalPlayer player, ShellState shellState) {
         if (!shellState.getWorld().equals(player.level().dimension().location())) {
             return false;
         }
 
+        if (this.currentContainerPos != null && isSameStorageBlock(shellState.getPos(), this.currentContainerPos)) {
+            return true;
+        }
+
         Vec3 shellCenter = NeoSyncSableCompat.projectBlockCenter(player.level(), shellState.getPos());
         return NeoSyncSableCompat.distanceSquared(player.level(), player.position(), shellCenter) < 0.75D * 0.75D;
+    }
+
+    private static boolean isSameStorageBlock(BlockPos shellPos, BlockPos currentContainerPos) {
+        return shellPos.equals(currentContainerPos)
+                || shellPos.above().equals(currentContainerPos)
+                || shellPos.below().equals(currentContainerPos)
+                || currentContainerPos.above().equals(shellPos)
+                || currentContainerPos.below().equals(shellPos);
     }
 
     private void nextSection() {

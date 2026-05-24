@@ -16,6 +16,8 @@ import com.breakinblocks.neosync.common.config.SyncConfig;
 import com.breakinblocks.neosync.common.entity.damage.FingerstickDamageSource;
 import com.breakinblocks.neosync.common.utils.BlockPosUtil;
 import org.jetbrains.annotations.Nullable;
+import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
+import net.minecraft.world.phys.Vec3;
 
 public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEntity implements IEnergyStorage {
     public ShellConstructorBlockEntity(BlockPos pos, BlockState state) {
@@ -25,8 +27,10 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
     @Override
     public void onServerTick(Level world, BlockPos pos, BlockState state) {
         super.onServerTick(world, pos, state);
+
         if (ShellConstructorBlock.isOpen(state)) {
-            ShellConstructorBlock.setOpen(state, world, pos, BlockPosUtil.hasPlayerInside(pos, world));
+            Vec3 shellCenter = NeoSyncSableCompat.projectBlockCenter(world, pos);
+            ShellConstructorBlock.setOpen(state, world, pos, BlockPosUtil.hasPlayerInside(shellCenter, world));
         }
     }
 
@@ -64,6 +68,7 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
 
             player.hurt(FingerstickDamageSource.fingerstick(player), damage);
             this.shell = ShellState.empty(serverPlayer, this.worldPosition);
+            ShellConstructorBlock.setOpen(this.getBlockState(), this.level, this.worldPosition, true);
             if (isCreative && config.enableInstantShellConstruction()) {
                 this.shell.setProgress(ShellState.PROGRESS_DONE);
             }

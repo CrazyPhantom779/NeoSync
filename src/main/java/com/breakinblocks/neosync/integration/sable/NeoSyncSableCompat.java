@@ -19,6 +19,10 @@ public final class NeoSyncSableCompat {
         return BlockPos.containing(projected);
     }
 
+    public static Vec3 projectBlockCenter(Level level, BlockPos pos) {
+        return projectOut(level, Vec3.atCenterOf(pos));
+    }
+
     public static Vec3 projectOut(Level level, Vec3 position) {
         if (!isLoaded()) {
             return position;

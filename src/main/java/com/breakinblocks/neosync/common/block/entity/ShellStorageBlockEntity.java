@@ -23,6 +23,8 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import com.breakinblocks.neosync.common.utils.BlockPosUtil;
 import java.lang.reflect.Method;
+import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
+import net.minecraft.world.phys.Vec3;
 
 public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity implements IEnergyStorage {
     private EntityState entityState;
@@ -100,8 +102,10 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
         boolean isLocalPlayer = isLocalClientPlayer(entity);
         boolean hasNoScreen = hasNoClientScreen();
 
+        Vec3 shellCenter = NeoSyncSableCompat.projectBlockCenter(entity.level(), this.worldPosition);
+
         if (this.entityState == EntityState.NONE) {
-            boolean isInside = BlockPosUtil.isEntityInside(entity, this.worldPosition);
+            boolean isInside = BlockPosUtil.isEntityInside(entity, shellCenter);
             PlayerSyncEvents.ShellSelectionFailureReason failureReason = !isInside && isLocalPlayer
                     ? PlayerSyncEvents.ALLOW_SHELL_SELECTION.invoker().allowShellSelection(player, this)
                     : null;
@@ -114,7 +118,7 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
         } else if (this.entityState != EntityState.CHILLING && hasNoScreen) {
             BlockPosUtil.moveEntity(
                     entity,
-                    this.worldPosition,
+                    shellCenter,
                     state.getValue(ShellStorageBlock.FACING),
                     this.entityState == EntityState.ENTERING
             );
@@ -123,7 +127,7 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
         if (this.entityState == EntityState.ENTERING
                 && isLocalPlayer
                 && hasNoClientScreen()
-                && BlockPosUtil.isEntityInside(entity, this.worldPosition)) {
+                && BlockPosUtil.isEntityInside(entity, shellCenter)) {
             openShellSelectorClient(
                     () -> this.entityState = EntityState.LEAVING,
                     () -> this.entityState = EntityState.CHILLING

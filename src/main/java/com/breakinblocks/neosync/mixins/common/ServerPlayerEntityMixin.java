@@ -42,6 +42,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
+import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -104,10 +106,23 @@ abstract class ServerPlayerEntityMixin extends Player implements ServerShell, Ki
     }
 
     @Override
-    public Either<ShellState, PlayerSyncEvents.SyncFailureReason> sync(ShellState state) {
+    public Either sync(ShellState state, @Nullable BlockPos currentContainerPos) {
         ServerPlayer player = (ServerPlayer)(Object)this;
-        BlockPos currentPos = this.blockPosition();
         Level currentWorld = player.level();
+
+        if (currentContainerPos != null) {
+            double currentContainerDistance = NeoSyncSableCompat.distanceSquared(
+                    currentWorld,
+                    player.position(),
+                    Vec3.atCenterOf(currentContainerPos)
+            );
+
+            if (currentContainerDistance > 4.0D) {
+                return Either.right(PlayerSyncEvents.SyncFailureReason.INVALID_CURRENT_LOCATION);
+            }
+        }
+
+        BlockPos currentPos = currentContainerPos == null ? this.blockPosition() : currentContainerPos;
 
         if (!this.canBeApplied(state) || state.getProgress() < ShellState.PROGRESS_DONE) {
             return Either.right(PlayerSyncEvents.SyncFailureReason.INVALID_SHELL);
@@ -121,7 +136,8 @@ abstract class ServerPlayerEntityMixin extends Player implements ServerShell, Ki
 
         PlayerSyncEvents.ShellSelectionFailureReason selectionFailureReason = PlayerSyncEvents.ALLOW_SHELL_SELECTION.invoker().allowShellSelection(player, currentShellContainer);
         if (selectionFailureReason != null) {
-            return Either.right(selectionFailureReason::toText);
+            PlayerSyncEvents.SyncFailureReason syncFailureReason = selectionFailureReason::toText;
+            return Either.right(syncFailureReason);
         }
 
         ResourceLocation targetWorldId = state.getWorld();

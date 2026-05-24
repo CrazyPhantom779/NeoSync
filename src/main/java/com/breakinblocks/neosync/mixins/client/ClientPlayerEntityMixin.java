@@ -61,7 +61,7 @@ public abstract class  ClientPlayerEntityMixin extends AbstractClientPlayer impl
     }
 
     @Override
-    public @Nullable PlayerSyncEvents.SyncFailureReason beginSync(ShellState state) {
+    public @Nullable PlayerSyncEvents.SyncFailureReason beginSync(ShellState state, @Nullable BlockPos currentContainerPos) {
         ClientLevel world = this.clientLevel;
         if (world == null) {
             return PlayerSyncEvents.SyncFailureReason.OTHER_PROBLEM;
@@ -83,7 +83,7 @@ public abstract class  ClientPlayerEntityMixin extends AbstractClientPlayer impl
         BlockPos cameraTargetPos = NeoSyncSableCompat.projectOut(world, state.getPos());
 
         Direction facing = BlockPosUtil.getHorizontalFacing(pos, world).orElse(this.getDirection().getOpposite());
-        SynchronizationRequestPacket request = new SynchronizationRequestPacket(state);
+        SynchronizationRequestPacket request = new SynchronizationRequestPacket(state, currentContainerPos);
 
         PersistentCameraEntityGoal cameraGoal = this.isDeadOrDying()
                 ? PersistentCameraEntityGoal.limbo(cameraPos, facing, cameraTargetPos, __ -> request.send())

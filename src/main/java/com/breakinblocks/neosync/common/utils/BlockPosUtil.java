@@ -13,6 +13,9 @@ import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
 
 public final class BlockPosUtil {
+    private BlockPosUtil() {
+    }
+
     public static Optional<Direction> getHorizontalFacing(BlockPos pos, BlockGetter blockView) {
         BlockState state = blockView.getBlockState(pos);
 
@@ -39,32 +42,29 @@ public final class BlockPosUtil {
         double dX = Math.abs(center.x - entity.getX());
         double dZ = Math.abs(center.z - entity.getZ());
 
-        final double MAX_DELTA = 0.01D;
+        final double MAX_DELTA = 0.45D;
         return dX < MAX_DELTA && dZ < MAX_DELTA;
     }
 
     public static void moveEntity(Entity entity, BlockPos target, Direction facing, boolean inside) {
-        moveEntity(entity, Vec3.atCenterOf(target), facing, inside);
+        Direction outsideDirection = facing.getOpposite();
+        moveEntity(entity, Vec3.atCenterOf(target), Vec3.atCenterOf(target.relative(outsideDirection)), inside);
     }
 
-    public static void moveEntity(Entity entity, Vec3 targetCenter, Direction facing, boolean inside) {
-        Direction targetDirection = facing.getOpposite();
-
-        double targetX = targetCenter.x;
-        double targetZ = targetCenter.z;
-
-        if (!inside) {
-            targetX += targetDirection.getStepX();
-            targetZ += targetDirection.getStepZ();
-        }
-
+    public static void moveEntity(Entity entity, Vec3 insideCenter, Vec3 outsideCenter, boolean inside) {
+        Vec3 target = inside ? insideCenter : outsideCenter;
         Vec3 currentPos = entity.position();
 
         final double MAX_SPEED = 0.33D;
-        double velocityX = getMinVelocity(targetX - currentPos.x, MAX_SPEED);
-        double velocityZ = getMinVelocity(targetZ - currentPos.z, MAX_SPEED);
+        double velocityX = getMinVelocity(target.x - currentPos.x, MAX_SPEED);
+        double velocityZ = getMinVelocity(target.z - currentPos.z, MAX_SPEED);
 
-        float yaw = targetDirection.toYRot();
+        Vec3 outsideVector = outsideCenter.subtract(insideCenter);
+        float yaw = entity.getYRot();
+
+        if (outsideVector.lengthSqr() > 1.0E-7D) {
+            yaw = (float) (Math.atan2(outsideVector.z, outsideVector.x) * 180.0D / Math.PI) - 90.0F;
+        }
 
         entity.setDeltaMovement(velocityX, 0.0D, velocityZ);
         entity.setXRot(0.0F);

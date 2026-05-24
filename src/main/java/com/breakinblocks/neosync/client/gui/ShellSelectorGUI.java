@@ -26,6 +26,10 @@ import net.minecraft.resources.ResourceLocation;
 import com.breakinblocks.neosync.client.utils.render.ColorUtil;
 import com.breakinblocks.neosync.common.utils.IdentifierUtil;
 import com.breakinblocks.neosync.common.utils.math.Radians;
+import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -43,6 +47,10 @@ public class ShellSelectorGUI extends Screen {
 
     private final Runnable onCloseCallback;
     private final Runnable onRemovedCallback;
+
+    @Nullable
+    private final BlockPos currentContainerPos;
+
     private boolean wasClosed;
     private List<ShellSelectorButtonWidget> shellButtons;
     private List<ArrowButtonWidget> arrowButtons;
@@ -50,7 +58,12 @@ public class ShellSelectorGUI extends Screen {
     private PageDisplayWidget<ResourceLocation, ShellState> pageDisplay;
 
     public ShellSelectorGUI(Runnable onCloseCallback, Runnable onRemovedCallback) {
+        this(null, onCloseCallback, onRemovedCallback);
+    }
+
+    public ShellSelectorGUI(@Nullable BlockPos currentContainerPos, Runnable onCloseCallback, Runnable onRemovedCallback) {
         super(TITLE);
+        this.currentContainerPos = currentContainerPos;
         this.onCloseCallback = onCloseCallback;
         this.onRemovedCallback = onRemovedCallback;
     }
@@ -64,7 +77,10 @@ public class ShellSelectorGUI extends Screen {
         }
         ResourceLocation selectedWorld = player.level().dimension().location();
 
-        List<ShellState> shellStates = ((Shell)player).getAvailableShellStates().collect(Collectors.toList());
+        List shellStates = ((Shell) player)
+                .getAvailableShellStates()
+                .filter(shellState -> !isCurrentContainerOption(player, shellState))
+                .collect(Collectors.toList());
 
         this.wasClosed = false;
         this.arrowButtons = createArrowButtons(this.width, this.height, ARROW_TITLES, List.of(this::previousSection, this::nextPage, this::nextSection, this::previousPage));
@@ -222,8 +238,19 @@ public class ShellSelectorGUI extends Screen {
         this.shellButtons.forEach(this::addRenderableWidget);
 
         for (int i = 0; i < content.size(); ++i) {
-            this.shellButtons.get(i).shell = content.get(i);
+            ShellSelectorButtonWidget button = this.shellButtons.get(i);
+            button.shell = content.get(i);
+            button.currentContainerPos = this.currentContainerPos;
         }
+    }
+
+    private static boolean isCurrentContainerOption(LocalPlayer player, ShellState shellState) {
+        if (!shellState.getWorld().equals(player.level().dimension().location())) {
+            return false;
+        }
+
+        Vec3 shellCenter = NeoSyncSableCompat.projectBlockCenter(player.level(), shellState.getPos());
+        return NeoSyncSableCompat.distanceSquared(player.level(), player.position(), shellCenter) < 0.75D * 0.75D;
     }
 
     private void nextSection() {

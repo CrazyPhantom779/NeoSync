@@ -56,6 +56,9 @@ public class ShellSelectorButtonWidget extends AbstractWidget {
     private final float pressedAlpha;
     private final BiPredicate<Double, Double> belongsToSectorPredicate;
 
+    @Nullable
+    public BlockPos currentContainerPos;
+
     public ShellState shell;
 
     public ShellSelectorButtonWidget(double cX, double cY, double majorR, double minorR, double borderWidth, double from, double to) {
@@ -151,7 +154,7 @@ public class ShellSelectorButtonWidget extends AbstractWidget {
             return;
         }
 
-        PlayerSyncEvents.SyncFailureReason failureReason = ((ClientShell) client.player).beginSync(this.shell);
+        PlayerSyncEvents.SyncFailureReason failureReason = ((ClientShell) client.player).beginSync(this.shell, this.currentContainerPos);
         if (failureReason != null) {
             if (client.screen != null) {
                 client.screen.onClose();

@@ -89,7 +89,8 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
         this.connectorAnimator.setValue(this.shell != null);
         this.connectorAnimator.step();
         if (this.entityState == EntityState.LEAVING || this.entityState == EntityState.CHILLING) {
-            this.entityState = BlockPosUtil.hasPlayerInside(pos, world) ? this.entityState : EntityState.NONE;
+            Vec3 shellCenter = NeoSyncSableCompat.projectBlockCenter(world, pos);
+            this.entityState = BlockPosUtil.hasPlayerInside(shellCenter, world) ? this.entityState : EntityState.NONE;
         }
     }
 
@@ -103,6 +104,11 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
         boolean hasNoScreen = hasNoClientScreen();
 
         Vec3 shellCenter = NeoSyncSableCompat.projectBlockCenter(entity.level(), this.worldPosition);
+        Vec3 shellOutside = NeoSyncSableCompat.projectNeighborCenter(
+                entity.level(),
+                this.worldPosition,
+                state.getValue(ShellStorageBlock.FACING).getOpposite()
+        );
 
         if (this.entityState == EntityState.NONE) {
             boolean isInside = BlockPosUtil.isEntityInside(entity, shellCenter);
@@ -119,7 +125,7 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
             BlockPosUtil.moveEntity(
                     entity,
                     shellCenter,
-                    state.getValue(ShellStorageBlock.FACING),
+                    shellOutside,
                     this.entityState == EntityState.ENTERING
             );
         }
@@ -129,6 +135,7 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
                 && hasNoClientScreen()
                 && BlockPosUtil.isEntityInside(entity, shellCenter)) {
             openShellSelectorClient(
+                    this.worldPosition,
                     () -> this.entityState = EntityState.LEAVING,
                     () -> this.entityState = EntityState.CHILLING
             );
@@ -148,10 +155,11 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
     }
 
     @OnlyIn(Dist.CLIENT)
-    private static void openShellSelectorClient(Runnable onCloseCallback, Runnable onRemovedCallback) {
+    private static void openShellSelectorClient(BlockPos currentContainerPos, Runnable onCloseCallback, Runnable onRemovedCallback) {
         invokeClientHook(
                 "openShellSelector",
-                new Class<?>[]{Runnable.class, Runnable.class},
+                new Class[]{BlockPos.class, Runnable.class, Runnable.class},
+                currentContainerPos,
                 onCloseCallback,
                 onRemovedCallback
         );

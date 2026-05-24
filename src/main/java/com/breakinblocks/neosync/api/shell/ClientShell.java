@@ -20,13 +20,13 @@ public interface ClientShell extends Shell {
         return true;
     }
 
-    /**
-     * Begins an asynchronous sync operation.
-     *
-     * @param state Target state.
-     * @return null if the sync process was started; otherwise, a failure reason is returned.
-     */
-    @Nullable PlayerSyncEvents.SyncFailureReason beginSync(ShellState state);
+    @Nullable
+    default PlayerSyncEvents.SyncFailureReason beginSync(ShellState state) {
+        return beginSync(state, null);
+    }
+
+    @Nullable
+    PlayerSyncEvents.SyncFailureReason beginSync(ShellState state, @Nullable BlockPos currentContainerPos);
 
     /**
      * Handles the end of an asynchronous sync operation.

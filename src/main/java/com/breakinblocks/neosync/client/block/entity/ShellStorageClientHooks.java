@@ -2,6 +2,7 @@ package com.breakinblocks.neosync.client.block.entity;
 
 import com.breakinblocks.neosync.client.gui.ShellSelectorGUI;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 
 public final class ShellStorageClientHooks {
@@ -16,7 +17,7 @@ public final class ShellStorageClientHooks {
         return Minecraft.getInstance().screen == null;
     }
 
-    public static void openShellSelector(Runnable onCloseCallback, Runnable onRemovedCallback) {
-        Minecraft.getInstance().setScreen(new ShellSelectorGUI(onCloseCallback, onRemovedCallback));
+    public static void openShellSelector(BlockPos currentContainerPos, Runnable onCloseCallback, Runnable onRemovedCallback) {
+        Minecraft.getInstance().setScreen(new ShellSelectorGUI(currentContainerPos, onCloseCallback, onRemovedCallback));
     }
 }

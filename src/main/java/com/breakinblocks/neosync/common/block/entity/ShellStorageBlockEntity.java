@@ -85,7 +85,7 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
                 "storage",
                 "server tick at {} shell={} energy={} infinitePower={} redstone={} hasEnergy={} powered={} shouldOpen={}",
                 NeoSyncDebug.describe(world, pos),
-                describeShell(this.shell),
+                NeoSyncDebug.describeShell(this.shell),
                 this.storedEnergy,
                 infinitePower,
                 isReceivingRedstonePower,

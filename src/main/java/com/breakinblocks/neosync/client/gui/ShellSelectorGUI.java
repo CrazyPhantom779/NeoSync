@@ -172,7 +172,7 @@ public class ShellSelectorGUI extends Screen {
         Stream<ShellState> data,
         ResourceLocation defaultPage,
         int entriesPerPage,
-        BiConsumer<PageDisplayWidget<ResourceLocation, ShellState>, PageDisplayWidget.Page<ResourceLocation, ShellState>> onChange
+        BiConsumer<PageDisplayWidget<ResourceLocation, ShellState>, PageDisplayWidget<ResourceLocation, ShellState>.Page> onChange
     ) {
         final float fontHeight = 1 / 30F;
         float cX = screenWidth / 2F;
@@ -295,7 +295,7 @@ public class ShellSelectorGUI extends Screen {
 
     private void onPageChange(
         PageDisplayWidget<ResourceLocation, ShellState> pageDisplay,
-        PageDisplayWidget.Page<ResourceLocation, ShellState> page
+        PageDisplayWidget<ResourceLocation, ShellState>.Page page
     ) {
         for (ArrowButtonWidget arrow : this.arrowButtons) {
             arrow.visible = arrow.type.isVertical() ? pageDisplay.hasMoreSections() : pageDisplay.hasMorePages();

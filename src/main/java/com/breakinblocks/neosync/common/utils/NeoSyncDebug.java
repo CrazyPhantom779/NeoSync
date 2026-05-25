@@ -2,6 +2,7 @@ package com.breakinblocks.neosync.common.utils;
 
 import com.breakinblocks.neosync.NeoSync;
 import com.breakinblocks.neosync.api.shell.ShellState;
+import com.breakinblocks.neosync.common.config.SyncConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
@@ -20,18 +21,34 @@ public final class NeoSyncDebug {
     }
 
     public static void info(String area, String message, Object... args) {
+        if (!enabled()) {
+            return;
+        }
+
         LOGGER.info("[{}] " + message, merge(area, args));
     }
 
     public static void warn(String area, String message, Object... args) {
+        if (!enabled()) {
+            return;
+        }
+
         LOGGER.warn("[{}] " + message, merge(area, args));
     }
 
     public static void error(String area, String message, Object... args) {
+        if (!enabled()) {
+            return;
+        }
+
         LOGGER.error("[{}] " + message, merge(area, args));
     }
 
     public static void error(String area, String message, Throwable throwable, Object... args) {
+        if (!enabled()) {
+            return;
+        }
+
         LOGGER.error("[{}] " + message, merge(area, args), throwable);
     }
 
@@ -39,6 +56,7 @@ public final class NeoSyncDebug {
         if (level == null || pos == null) {
             return "level/pos=null";
         }
+
         ResourceLocation dimension = level.dimension().location();
         return dimension + " @ " + pos.toShortString();
     }
@@ -47,6 +65,7 @@ public final class NeoSyncDebug {
         if (level == null || pos == null) {
             return "level/pos=null";
         }
+
         BlockState state = level.getBlockState(pos);
         BlockEntity blockEntity = level.getBlockEntity(pos);
         return describe(level, pos)
@@ -58,6 +77,7 @@ public final class NeoSyncDebug {
         if (entity == null) {
             return "entity=null";
         }
+
         return entity.getClass().getSimpleName()
             + "{name=" + entity.getName().getString()
             + ",uuid=" + entity.getUUID()
@@ -69,6 +89,7 @@ public final class NeoSyncDebug {
         if (vec == null) {
             return "vec=null";
         }
+
         return "("
             + round(vec.x) + ", "
             + round(vec.y) + ", "
@@ -79,12 +100,17 @@ public final class NeoSyncDebug {
         if (state == null) {
             return "null";
         }
+
         return "uuid=" + state.getUuid()
             + ",owner=" + state.getOwnerName()
             + ",progress=" + state.getProgress()
             + ",color=" + state.getColor()
             + ",pos=" + (state.getPos() == null ? "null" : state.getPos().toShortString())
             + ",world=" + state.getWorld();
+    }
+
+    private static boolean enabled() {
+        return SyncConfig.getInstance().enableDebugLogging();
     }
 
     private static String round(double value) {

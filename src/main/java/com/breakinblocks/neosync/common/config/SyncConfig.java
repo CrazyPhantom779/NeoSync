@@ -1,5 +1,7 @@
 package com.breakinblocks.neosync.common.config;
 
+import com.breakinblocks.neosync.NeoSync;
+import com.breakinblocks.neosync.api.shell.ShellPriority;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
@@ -7,8 +9,6 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
-import com.breakinblocks.neosync.NeoSync;
-import com.breakinblocks.neosync.api.shell.ShellPriority;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 @EventBusSubscriber(modid = NeoSync.MOD_ID, bus = EventBusSubscriber.Bus.MOD)
 public class SyncConfig {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
+
     public static final ModConfigSpec SPEC;
 
     // General settings
@@ -52,6 +53,7 @@ public class SyncConfig {
 
     // Misc settings
     private static final ModConfigSpec.BooleanValue UPDATE_TRANSLATIONS_AUTOMATICALLY;
+    private static final ModConfigSpec.BooleanValue ENABLE_DEBUG_LOGGING;
     private static final ModConfigSpec.BooleanValue PRESERVE_ORIGINS;
 
     // Technoblade easter egg
@@ -69,144 +71,120 @@ public class SyncConfig {
 
     static {
         BUILDER.comment("General settings").push("general");
-
         ENABLE_INSTANT_SHELL_CONSTRUCTION = BUILDER
-                .comment("Enable instant shell construction (creative mode)")
-                .define("enableInstantShellConstruction", false);
-
+            .comment("Enable instant shell construction (creative mode)")
+            .define("enableInstantShellConstruction", false);
         WARN_PLAYER_INSTEAD_OF_KILLING = BUILDER
-                .comment("Warn player instead of killing them when they don't have enough health")
-                .define("warnPlayerInsteadOfKilling", false);
-
+            .comment("Warn player instead of killing them when they don't have enough health")
+            .define("warnPlayerInsteadOfKilling", false);
         BUILDER.pop();
 
         BUILDER.comment("Damage settings").push("damage");
-
         FINGERSTICK_DAMAGE = BUILDER
-                .comment("Damage dealt when creating a shell (in half hearts)")
-                .defineInRange("fingerstickDamage", 20.0, 0.0, 40.0);
-
+            .comment("Damage dealt when creating a shell (in half hearts)")
+            .defineInRange("fingerstickDamage", 20.0, 0.0, 40.0);
         HARDCORE_FINGERSTICK_DAMAGE = BUILDER
-                .comment("Damage dealt when creating a shell in hardcore mode")
-                .defineInRange("hardcoreFingerstickDamage", 40.0, 0.0, 80.0);
-
+            .comment("Damage dealt when creating a shell in hardcore mode")
+            .defineInRange("hardcoreFingerstickDamage", 40.0, 0.0, 80.0);
         BUILDER.pop();
 
         BUILDER.comment("Energy settings").push("energy");
-
         SHELL_CONSTRUCTOR_CAPACITY = BUILDER
-                .comment("Energy capacity/requirement for shell constructor")
-                .defineInRange("shellConstructorCapacity", 256000L, 1000L, Long.MAX_VALUE);
-
+            .comment("Energy capacity/requirement for shell constructor")
+            .defineInRange("shellConstructorCapacity", 256000L, 1000L, Long.MAX_VALUE);
         SHELL_STORAGE_CAPACITY = BUILDER
-                .comment("Energy capacity of shell storage")
-                .defineInRange("shellStorageCapacity", 320L, 0L, Long.MAX_VALUE);
-
+            .comment("Energy capacity of shell storage")
+            .defineInRange("shellStorageCapacity", 320L, 0L, Long.MAX_VALUE);
         SHELL_STORAGE_CONSUMPTION = BUILDER
-                .comment("Energy consumption per tick for shell storage")
-                .defineInRange("shellStorageConsumption", 16L, 0L, 1000L);
-
+            .comment("Energy consumption per tick for shell storage")
+            .defineInRange("shellStorageConsumption", 16L, 0L, 1000L);
         BUILDER.pop();
 
         BUILDER.comment("Shell Storage settings").push("shellStorage");
-
         SHELL_STORAGE_ACCEPTS_REDSTONE = BUILDER
-                .comment("Whether shell storage accepts redstone power")
-                .define("acceptsRedstone", true);
-
+            .comment("Whether shell storage accepts redstone power")
+            .define("acceptsRedstone", true);
         SHELL_STORAGE_MAX_UNPOWERED_LIFESPAN = BUILDER
-                .comment("Maximum time (in ticks) shell storage can run without power")
-                .defineInRange("maxUnpoweredLifespan", 20, 0, 6000);
-
+            .comment("Maximum time (in ticks) shell storage can run without power")
+            .defineInRange("maxUnpoweredLifespan", 20, 0, 6000);
         BUILDER.pop();
 
         BUILDER.comment("Energy production settings").push("energyProduction");
-
         ENERGY_MAP = BUILDER
-                .comment("Entity energy production map (format: 'entity_id:energy_per_tick')")
-                .defineListAllowEmpty(
-                        "energyMap",
-                        () -> Arrays.asList(
-                                "minecraft:chicken:2",
-                                "minecraft:pig:16",
-                                "minecraft:player:20",
-                                "minecraft:villager:25",
-                                "minecraft:wolf:22",
-                                "minecraft:creeper:80",
-                                "minecraft:enderman:160"
-                        ),
-                        () -> "minecraft:pig:16",
-                        obj -> obj instanceof String && ((String) obj).contains(":")
-                );
-
+            .comment("Entity energy production map (format: 'entity_id:energy_per_tick')")
+            .defineListAllowEmpty(
+                "energyMap",
+                () -> Arrays.asList(
+                    "minecraft:chicken:2",
+                    "minecraft:pig:16",
+                    "minecraft:player:20",
+                    "minecraft:villager:25",
+                    "minecraft:wolf:22",
+                    "minecraft:creeper:80",
+                    "minecraft:enderman:160"
+                ),
+                () -> "minecraft:pig:16",
+                obj -> obj instanceof String && ((String) obj).contains(":")
+            );
         BUILDER.pop();
 
         BUILDER.comment("Synchronization settings").push("sync");
-
         SYNC_PRIORITY = BUILDER
-                .comment("Shell priority order for automatic synchronization",
-                        "Valid values: WHITE, ORANGE, MAGENTA, LIGHT_BLUE, YELLOW, LIME, PINK, GRAY,",
-                        "LIGHT_GRAY, CYAN, PURPLE, BLUE, BROWN, GREEN, RED, BLACK, NEAREST, NATURAL")
-                .defineListAllowEmpty(
-                        "syncPriority",
-                        () -> Collections.singletonList("NATURAL"),
-                        () -> "NATURAL",
-                        obj -> obj instanceof String && isValidPriority((String) obj)
-                );
-
+            .comment(
+                "Shell priority order for automatic synchronization",
+                "Valid values: WHITE, ORANGE, MAGENTA, LIGHT_BLUE, YELLOW, LIME, PINK, GRAY,",
+                "LIGHT_GRAY, CYAN, PURPLE, BLUE, BROWN, GREEN, RED, BLACK, NEAREST, NATURAL"
+            )
+            .defineListAllowEmpty(
+                "syncPriority",
+                () -> Collections.singletonList("NATURAL"),
+                () -> "NATURAL",
+                obj -> obj instanceof String && isValidPriority((String) obj)
+            );
         PRESERVE_ORIGINS = BUILDER
-                .comment("If enabled, all shells share the same origins")
-                .define("preserveOrigins", false);
-
+            .comment("If enabled, all shells share the same origins")
+            .define("preserveOrigins", false);
         BUILDER.pop();
 
         BUILDER.comment("Tool settings").push("tools");
-
         WRENCH = BUILDER
-                .comment("Item ID to use as wrench")
-                .define("wrench", "minecraft:stick");
-
+            .comment("Item ID to use as wrench")
+            .define("wrench", "minecraft:stick");
         BUILDER.pop();
 
         BUILDER.comment("Miscellaneous settings").push("misc");
-
         UPDATE_TRANSLATIONS_AUTOMATICALLY = BUILDER
-                .comment("Update translations automatically on game launch")
-                .define("updateTranslationsAutomatically", false);
-
+            .comment("Update translations automatically on game launch")
+            .define("updateTranslationsAutomatically", false);
+        ENABLE_DEBUG_LOGGING = BUILDER
+            .comment("Enable NeoSync debug logging")
+            .define("enableDebugLogging", false);
         BUILDER.pop();
 
         BUILDER.comment("Easter egg settings").push("easterEggs");
-
         ENABLE_TECHNOBLADE_EASTER_EGG = BUILDER
-                .comment("Enable Technoblade easter egg")
-                .define("enableTechnobladeEasterEgg", true);
-
+            .comment("Enable Technoblade easter egg")
+            .define("enableTechnobladeEasterEgg", true);
         RENDER_TECHNOBLADE_CAPE = BUILDER
-                .comment("Render Technoblade's cape")
-                .define("renderTechnobladeCape", false);
-
+            .comment("Render Technoblade's cape")
+            .define("renderTechnobladeCape", false);
         ALLOW_TECHNOBLADE_ANNOUNCEMENTS = BUILDER
-                .comment("Allow Technoblade announcements")
-                .define("allowTechnobladeAnnouncements", true);
-
+            .comment("Allow Technoblade announcements")
+            .define("allowTechnobladeAnnouncements", true);
         ALLOW_TECHNOBLADE_QUOTES = BUILDER
-                .comment("Allow Technoblade quotes")
-                .define("allowTechnobladeQuotes", true);
-
+            .comment("Allow Technoblade quotes")
+            .define("allowTechnobladeQuotes", true);
         TECHNOBLADE_QUOTE_DELAY = BUILDER
-                .comment("Delay between Technoblade quotes (in ticks)")
-                .defineInRange("technobladeQuoteDelay", 1800, 200, 72000);
-
+            .comment("Delay between Technoblade quotes (in ticks)")
+            .defineInRange("technobladeQuoteDelay", 1800, 200, 72000);
         TECHNOBLADE_UUIDS = BUILDER
-                .comment("UUIDs of players to treat as Technoblade")
-                .defineListAllowEmpty(
-                        "technobladeUuids",
-                        Collections::emptyList,
-                        () -> "00000000-0000-0000-0000-000000000000",
-                        obj -> obj instanceof String && isValidUuid((String) obj)
-                );
-
+            .comment("UUIDs of players to treat as Technoblade")
+            .defineListAllowEmpty(
+                "technobladeUuids",
+                Collections::emptyList,
+                () -> "00000000-0000-0000-0000-000000000000",
+                obj -> obj instanceof String && isValidUuid((String) obj)
+            );
         BUILDER.pop();
 
         SPEC = BUILDER.build();
@@ -282,44 +260,47 @@ public class SyncConfig {
     public List<EnergyMapEntry> energyMap() {
         if (cachedEnergyMap == null) {
             cachedEnergyMap = ENERGY_MAP.get().stream()
-                    .map(str -> {
-                        int lastColon = str.lastIndexOf(':');
-                        if (lastColon <= 0 || lastColon >= str.length() - 1) {
-                            return null;
-                        }
-                        String entityId = str.substring(0, lastColon);
-                        try {
-                            long energy = Long.parseLong(str.substring(lastColon + 1));
-                            return EnergyMapEntry.of(entityId, energy);
-                        } catch (NumberFormatException e) {
-                            return null;
-                        }
-                    })
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+                .map(str -> {
+                    int lastColon = str.lastIndexOf(':');
+                    if (lastColon <= 0 || lastColon >= str.length() - 1) {
+                        return null;
+                    }
+
+                    String entityId = str.substring(0, lastColon);
+                    try {
+                        long energy = Long.parseLong(str.substring(lastColon + 1));
+                        return EnergyMapEntry.of(entityId, energy);
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
         }
+
         return cachedEnergyMap;
     }
 
     public List<ShellPriorityEntry> syncPriority() {
         if (cachedSyncPriority == null) {
             cachedSyncPriority = SYNC_PRIORITY.get().stream()
-                    .map(str -> {
-                        try {
-                            ShellPriority priority = ShellPriority.valueOf(str.toUpperCase());
-                            return new ShellPriorityEntry() {
-                                @Override
-                                public ShellPriority priority() {
-                                    return priority;
-                                }
-                            };
-                        } catch (IllegalArgumentException e) {
-                            return null;
-                        }
-                    })
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+                .map(str -> {
+                    try {
+                        ShellPriority priority = ShellPriority.valueOf(str.toUpperCase());
+                        return new ShellPriorityEntry() {
+                            @Override
+                            public ShellPriority priority() {
+                                return priority;
+                            }
+                        };
+                    } catch (IllegalArgumentException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
         }
+
         return cachedSyncPriority;
     }
 
@@ -329,6 +310,10 @@ public class SyncConfig {
 
     public boolean updateTranslationsAutomatically() {
         return UPDATE_TRANSLATIONS_AUTOMATICALLY.get();
+    }
+
+    public boolean enableDebugLogging() {
+        return ENABLE_DEBUG_LOGGING.get();
     }
 
     public boolean preserveOrigins() {
@@ -358,16 +343,17 @@ public class SyncConfig {
     public boolean isTechnoblade(UUID uuid) {
         if (cachedTechnobladeUuids == null) {
             cachedTechnobladeUuids = TECHNOBLADE_UUIDS.get().stream()
-                    .map(str -> {
-                        try {
-                            return UUID.fromString(str);
-                        } catch (IllegalArgumentException e) {
-                            return null;
-                        }
-                    })
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toSet());
+                .map(str -> {
+                    try {
+                        return UUID.fromString(str);
+                    } catch (IllegalArgumentException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
         }
+
         return cachedTechnobladeUuids.contains(uuid);
     }
 
@@ -405,6 +391,7 @@ public class SyncConfig {
             if (id == null) {
                 return EntityType.PIG;
             }
+
             EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
             return type == null ? EntityType.PIG : type;
         }
@@ -434,4 +421,3 @@ public class SyncConfig {
         }
     }
 }
-

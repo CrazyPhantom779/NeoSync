@@ -38,16 +38,35 @@ public final class ClientPacketDispatch {
 
     private static void invokeClient(String methodName, Object payload) {
         if (FMLEnvironment.dist != Dist.CLIENT) {
-            NeoSyncDebug.warn("client-dispatch", "ignored {} for {} because current dist is {}", methodName, payload.getClass().getSimpleName(), FMLEnvironment.dist);
+            NeoSyncDebug.warn(
+                "client-dispatch",
+                "ignored {} for {} because current dist is {}",
+                methodName,
+                payload.getClass().getSimpleName(),
+                FMLEnvironment.dist
+            );
             return;
         }
 
         try {
             Class<?> handlerClass = Class.forName(CLIENT_HANDLER);
             Method method = handlerClass.getMethod(methodName, payload.getClass());
-            NeoSyncDebug.info("client-dispatch", "dispatching {} for {}", methodName, payload.getClass().getSimpleName());
+            NeoSyncDebug.info(
+                "client-dispatch",
+                "dispatching {} for {} via {}",
+                methodName,
+                payload.getClass().getSimpleName(),
+                CLIENT_HANDLER
+            );
             method.invoke(null, payload);
         } catch (ReflectiveOperationException e) {
+            NeoSyncDebug.error(
+                "client-dispatch",
+                "failed to dispatch {} for {}",
+                e,
+                methodName,
+                payload.getClass().getName()
+            );
             throw new RuntimeException("Failed to dispatch NeoSync client packet " + payload.getClass().getName(), e);
         }
     }

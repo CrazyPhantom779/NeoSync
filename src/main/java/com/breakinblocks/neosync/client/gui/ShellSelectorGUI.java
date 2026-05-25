@@ -44,15 +44,14 @@ public class ShellSelectorGUI extends Screen {
     private static final int BACKGROUND_COLOR = ColorUtil.fromDyeColor(DyeColor.BLACK, 0.3F);
     private static final Component TITLE = Component.translatable("gui.neosync.default.cross_button.title");
     private static final Collection<Component> ARROW_TITLES = List.of(
-            Component.translatable("gui.neosync.shell_selector.up.title"),
-            Component.translatable("gui.neosync.shell_selector.right.title"),
-            Component.translatable("gui.neosync.shell_selector.down.title"),
-            Component.translatable("gui.neosync.shell_selector.left.title")
+        Component.translatable("gui.neosync.shell_selector.up.title"),
+        Component.translatable("gui.neosync.shell_selector.right.title"),
+        Component.translatable("gui.neosync.shell_selector.down.title"),
+        Component.translatable("gui.neosync.shell_selector.left.title")
     );
 
     private final Runnable onCloseCallback;
     private final Runnable onRemovedCallback;
-
     @Nullable
     private final BlockPos currentContainerPos;
 
@@ -66,7 +65,11 @@ public class ShellSelectorGUI extends Screen {
         this(null, onCloseCallback, onRemovedCallback);
     }
 
-    public ShellSelectorGUI(@Nullable BlockPos currentContainerPos, Runnable onCloseCallback, Runnable onRemovedCallback) {
+    public ShellSelectorGUI(
+        @Nullable BlockPos currentContainerPos,
+        Runnable onCloseCallback,
+        Runnable onRemovedCallback
+    ) {
         super(TITLE);
         this.currentContainerPos = currentContainerPos;
         this.onCloseCallback = onCloseCallback;
@@ -76,7 +79,6 @@ public class ShellSelectorGUI extends Screen {
     @Override
     public void init() {
         LocalPlayer player = Minecraft.getInstance().player;
-
         if (player == null) {
             NeoSyncDebug.warn("selector", "init closed because local player was null");
             this.onClose();
@@ -88,98 +90,154 @@ public class ShellSelectorGUI extends Screen {
         UUID currentShellUuid = clientShell.neosync$getCurrentShellUuid();
         List<ShellState> allShellStates = clientShell.getAvailableShellStates().collect(Collectors.toList());
         List<ShellState> shellStates = allShellStates.stream()
-                .filter(shellState -> !isCurrentContainerOption(currentShellUuid, shellState))
-                .collect(Collectors.toList());
+            .filter(shellState -> !isCurrentContainerOption(currentShellUuid, shellState))
+            .collect(Collectors.toList());
 
-        NeoSyncDebug.info("selector", "init currentContainer={} currentShellUuid={} allStates={} visibleStates={}", this.currentContainerPos, currentShellUuid, allShellStates.size(), shellStates.size());
-
+        NeoSyncDebug.info(
+            "selector",
+            "init currentContainer={} currentShellUuid={} allStates={} visibleStates={}",
+            this.currentContainerPos,
+            currentShellUuid,
+            allShellStates.size(),
+            shellStates.size()
+        );
         for (ShellState state : allShellStates) {
-            NeoSyncDebug.info("selector", "state candidate uuid={} pos={} world={} progress={} filtered={}", state.getUuid(), state.getPos(), state.getWorld(), state.getProgress(), isCurrentContainerOption(currentShellUuid, state));
+            NeoSyncDebug.info(
+                "selector",
+                "state candidate uuid={} pos={} world={} progress={} filtered={}",
+                state.getUuid(),
+                state.getPos(),
+                state.getWorld(),
+                state.getProgress(),
+                isCurrentContainerOption(currentShellUuid, state)
+            );
         }
 
         this.wasClosed = false;
-        this.arrowButtons = createArrowButtons(this.width, this.height, ARROW_TITLES, List.of(this::previousSection, this::nextPage, this::nextSection, this::previousPage));
+        this.clearWidgets();
+
+        this.arrowButtons = createArrowButtons(
+            this.width,
+            this.height,
+            ARROW_TITLES,
+            List.of(this::previousSection, this::nextPage, this::nextSection, this::previousPage)
+        );
         this.crossButton = createCrossButton(this.width, this.height, this::onClose);
-        this.pageDisplay = createPageDisplay(this.width, this.height, shellStates.stream(), selectedWorld, MAX_SLOTS, this::onPageChange);
-        Stream.concat(this.arrowButtons.stream(), Stream.of(this.crossButton, this.pageDisplay)).forEach(this::addRenderableWidget);
+        this.pageDisplay = createPageDisplay(
+            this.width,
+            this.height,
+            shellStates.stream(),
+            selectedWorld,
+            MAX_SLOTS,
+            this::onPageChange
+        );
+
+        Stream.concat(this.arrowButtons.stream(), Stream.of(this.crossButton, this.pageDisplay))
+            .forEach(this::addRenderableWidget);
         HudController.hide();
     }
 
+    public void refreshFromNetwork() {
+        NeoSyncDebug.info("selector", "refreshFromNetwork currentContainer={}", this.currentContainerPos);
+        this.init();
+    }
+
     private static List<ShellSelectorButtonWidget> createShellButtons(int screenWidth, int screenHeight, int count) {
-        final double HOLLOW_R = MENU_RADIUS * 0.6;
-        final double BORDER_WIDTH = 0.0033;
-        final double SECTOR_SPACING = 0.01;
+        final double hollowR = MENU_RADIUS * 0.6;
+        final double borderWidth = 0.0033;
+        final double sectorSpacing = 0.01;
 
         double cX = screenWidth / 2.0;
         double cY = screenHeight / 2.0;
         double majorR = screenHeight * MENU_RADIUS;
-        double minorR = screenHeight * HOLLOW_R;
-        double spacing = count > 1 ? SECTOR_SPACING : 0;
+        double minorR = screenHeight * hollowR;
+        double spacing = count > 1 ? sectorSpacing : 0;
         double sector = Radians.R_2_PI / count - spacing;
-        double borderWidth = screenHeight * BORDER_WIDTH;
+        double strokeWidth = screenHeight * borderWidth;
         double pos = -sector / (2 << (count % 2));
-        List<ShellSelectorButtonWidget> shellButtons = new ArrayList<>();
 
+        List<ShellSelectorButtonWidget> buttons = new ArrayList<>();
         for (int i = 0; i < count; ++i) {
-            ShellSelectorButtonWidget button = new ShellSelectorButtonWidget(cX, cY, majorR, minorR, borderWidth, pos, pos + sector);
+            ShellSelectorButtonWidget button =
+                new ShellSelectorButtonWidget(cX, cY, majorR, minorR, strokeWidth, pos, pos + sector);
             pos += sector + spacing;
-            shellButtons.add(button);
+            buttons.add(button);
         }
-
-        return shellButtons;
+        return buttons;
     }
 
-    private static PageDisplayWidget<ResourceLocation, ShellState> createPageDisplay(int screenWidth, int screenHeight, Stream<ShellState> data, ResourceLocation defaultPage, int entriesPerPage, BiConsumer<PageDisplayWidget<ResourceLocation, ShellState>, PageDisplayWidget<ResourceLocation, ShellState>.Page> onChange) {
-        final float FONT_HEIGHT = 1 / 30F;
+    private static PageDisplayWidget<ResourceLocation, ShellState> createPageDisplay(
+        int screenWidth,
+        int screenHeight,
+        Stream<ShellState> data,
+        ResourceLocation defaultPage,
+        int entriesPerPage,
+        BiConsumer<PageDisplayWidget<ResourceLocation, ShellState>, PageDisplayWidget.Page<ResourceLocation, ShellState>> onChange
+    ) {
+        final float fontHeight = 1 / 30F;
         float cX = screenWidth / 2F;
         float cY = screenHeight / 2F;
-        float scale = screenHeight * FONT_HEIGHT / Minecraft.getInstance().font.lineHeight;
-        return new PageDisplayWidget<>(cX, cY, scale, data, ShellState::getWorld, IdentifierUtil::prettifyAsText, defaultPage, entriesPerPage, onChange);
+        float scale = screenHeight * fontHeight / Minecraft.getInstance().font.lineHeight;
+        return new PageDisplayWidget<>(
+            cX,
+            cY,
+            scale,
+            data,
+            ShellState::getWorld,
+            IdentifierUtil::prettifyAsText,
+            defaultPage,
+            entriesPerPage,
+            onChange
+        );
     }
 
-    private static List<ArrowButtonWidget> createArrowButtons(int screenWidth, int screenHeight, Iterable<Component> arrowTitles, Iterable<Runnable> arrowActions) {
-        final float ARROW_HEIGHT = 2 / 75F;
-        final float ARROW_WIDTH = 57 / 32F;
-        final float ARROW_THICKNESS = 1 / 240F;
-        final float ARROW_SPACING = 1 / 14F;
+    private static List<ArrowButtonWidget> createArrowButtons(
+        int screenWidth,
+        int screenHeight,
+        Iterable<Component> arrowTitles,
+        Iterable<Runnable> arrowActions
+    ) {
+        final float arrowHeight = 2 / 75F;
+        final float arrowWidth = 57 / 32F;
+        final float arrowThickness = 1 / 240F;
+        final float arrowSpacing = 1 / 14F;
 
         float cX = screenWidth / 2F;
         float cY = screenHeight / 2F;
-        float r = screenHeight * (float) MENU_RADIUS * (1F + ARROW_SPACING);
-        float arrowHeight = screenHeight * ARROW_HEIGHT;
-        float arrowWidth = arrowHeight * ARROW_WIDTH;
-        float thickness = screenHeight * ARROW_THICKNESS;
+        float r = screenHeight * (float) MENU_RADIUS * (1F + arrowSpacing);
+        float height = screenHeight * arrowHeight;
+        float width = height * arrowWidth;
+        float thickness = screenHeight * arrowThickness;
+
         Iterator<Runnable> actions = arrowActions.iterator();
         Iterator<Component> descriptions = arrowTitles.iterator();
         List<ArrowButtonWidget> arrowButtons = new ArrayList<>();
-
         for (ArrowButtonWidget.ArrowType arrowType : ArrowButtonWidget.ArrowType.values()) {
             float x;
             float y;
-
             if (arrowType.isVertical()) {
-                x = screenWidth / 2F - arrowWidth / 2F;
-                y = cY + r * (arrowType.isDown() ? 1 : -1) + (arrowType.isDown() ? 0 : -arrowHeight);
+                x = screenWidth / 2F - width / 2F;
+                y = cY + r * (arrowType.isDown() ? 1 : -1) + (arrowType.isDown() ? 0 : -height);
             } else {
-                x = cX + r * (arrowType.isRight() ? 1 : -1) + (arrowType.isRight() ? 0 : -arrowHeight);
-                y = screenHeight / 2F - arrowWidth / 2F;
+                x = cX + r * (arrowType.isRight() ? 1 : -1) + (arrowType.isRight() ? 0 : -height);
+                y = screenHeight / 2F - width / 2F;
             }
-
-            arrowButtons.add(new ArrowButtonWidget(x, y, arrowWidth, arrowHeight, arrowType, thickness, descriptions.next(), actions.next()));
+            arrowButtons.add(
+                new ArrowButtonWidget(x, y, width, height, arrowType, thickness, descriptions.next(), actions.next())
+            );
         }
-
         return arrowButtons;
     }
 
     private static CrossButtonWidget createCrossButton(int screenWidth, int screenHeight, Runnable onClose) {
-        final float CROSS_MARGIN = 1 / 15F;
-        final float CROSS_WIDTH = 2 / 75F;
-        final float CROSS_THICKNESS = 1 / 240F;
+        final float crossMargin = 1 / 15F;
+        final float crossWidth = 2 / 75F;
+        final float crossThickness = 1 / 240F;
 
-        float width = screenHeight * CROSS_WIDTH;
-        float y = screenHeight * CROSS_MARGIN;
+        float width = screenHeight * crossWidth;
+        float y = screenHeight * crossMargin;
         float x = screenWidth - y - width;
-        float thickness = screenHeight * CROSS_THICKNESS;
+        float thickness = screenHeight * crossThickness;
         return new CrossButtonWidget(x, y, width, width, thickness, onClose);
     }
 
@@ -201,13 +259,12 @@ public class ShellSelectorGUI extends Screen {
 
     protected void renderTooltips(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         for (GuiEventListener child : this.children()) {
-            if (child instanceof NarratableEntry narratableEntry && narratableEntry.narrationPriority() != NarratableEntry.NarrationPriority.NONE) {
+            if (child instanceof NarratableEntry narratableEntry
+                && narratableEntry.narrationPriority() != NarratableEntry.NarrationPriority.NONE) {
                 Component tooltipText = child instanceof TooltipProvider tooltipProvider ? tooltipProvider.getTooltip() : null;
-
                 if (tooltipText != null) {
                     guiGraphics.renderTooltip(font, tooltipText, mouseX, mouseY);
                 }
-
                 return;
             }
         }
@@ -218,13 +275,11 @@ public class ShellSelectorGUI extends Screen {
         if (super.keyPressed(keyCode, scanCode, modifiers)) {
             return true;
         }
-
         for (GuiEventListener child : this.children()) {
             if (child.keyPressed(keyCode, scanCode, modifiers)) {
                 return true;
             }
         }
-
         return false;
     }
 
@@ -238,7 +293,10 @@ public class ShellSelectorGUI extends Screen {
         return false;
     }
 
-    private void onPageChange(PageDisplayWidget<ResourceLocation, ShellState> pageDisplay, PageDisplayWidget<ResourceLocation, ShellState>.Page page) {
+    private void onPageChange(
+        PageDisplayWidget<ResourceLocation, ShellState> pageDisplay,
+        PageDisplayWidget.Page<ResourceLocation, ShellState> page
+    ) {
         for (ArrowButtonWidget arrow : this.arrowButtons) {
             arrow.visible = arrow.type.isVertical() ? pageDisplay.hasMoreSections() : pageDisplay.hasMorePages();
         }
@@ -248,7 +306,13 @@ public class ShellSelectorGUI extends Screen {
         }
 
         List<ShellState> content = page.content;
-        NeoSyncDebug.info("selector", "page change contentSize={} currentContainer={}", content.size(), this.currentContainerPos);
+        NeoSyncDebug.info(
+            "selector",
+            "page change contentSize={} currentContainer={}",
+            content.size(),
+            this.currentContainerPos
+        );
+
         this.shellButtons = createShellButtons(this.width, this.height, Math.max(content.size(), 1));
         this.shellButtons.forEach(this::addRenderableWidget);
 
@@ -263,16 +327,15 @@ public class ShellSelectorGUI extends Screen {
         if (this.currentContainerPos != null && isSameStorageBlock(shellState.getPos(), this.currentContainerPos)) {
             return true;
         }
-
         return currentShellUuid != null && shellState.getUuid().equals(currentShellUuid);
     }
 
     private static boolean isSameStorageBlock(BlockPos shellPos, BlockPos currentContainerPos) {
         return shellPos.equals(currentContainerPos)
-                || shellPos.above().equals(currentContainerPos)
-                || shellPos.below().equals(currentContainerPos)
-                || currentContainerPos.above().equals(shellPos)
-                || currentContainerPos.below().equals(shellPos);
+            || shellPos.above().equals(currentContainerPos)
+            || shellPos.below().equals(currentContainerPos)
+            || currentContainerPos.above().equals(shellPos)
+            || currentContainerPos.below().equals(shellPos);
     }
 
     private void nextSection() {
@@ -295,11 +358,9 @@ public class ShellSelectorGUI extends Screen {
     public void onClose() {
         NeoSyncDebug.info("selector", "onClose wasClosed={} currentContainer={}", this.wasClosed, this.currentContainerPos);
         HudController.restore();
-
         if (this.onCloseCallback != null) {
             this.onCloseCallback.run();
         }
-
         this.wasClosed = true;
         super.onClose();
     }
@@ -308,7 +369,6 @@ public class ShellSelectorGUI extends Screen {
     public void removed() {
         super.removed();
         NeoSyncDebug.info("selector", "removed wasClosed={} currentContainer={}", this.wasClosed, this.currentContainerPos);
-
         if (!this.wasClosed && this.onRemovedCallback != null) {
             this.onRemovedCallback.run();
         }

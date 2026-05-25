@@ -11,12 +11,10 @@ import com.breakinblocks.neosync.common.utils.ItemUtil;
 import com.breakinblocks.neosync.common.utils.NeoSyncDebug;
 import com.breakinblocks.neosync.common.utils.nbt.SyncRegistries;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
@@ -42,7 +40,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Objects;
 import java.util.Optional;
 
-public abstract class AbstractShellContainerBlockEntity extends BlockEntity implements ShellStateContainer, DoubleBlockEntity, TickableBlockEntity, Container {
+public abstract class AbstractShellContainerBlockEntity extends BlockEntity
+    implements ShellStateContainer, DoubleBlockEntity, TickableBlockEntity, Container {
     protected final BooleanAnimator doorAnimator;
     protected ShellState shell;
     protected DyeColor color;
@@ -61,38 +60,74 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
     public AbstractShellContainerBlockEntity(@NotNull BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
         this.doorAnimator = new BooleanAnimator(AbstractShellContainerBlock.isOpen(state));
-        NeoSyncDebug.info("container-be", "created {} at {} state={}", this.getClass().getSimpleName(), pos.toShortString(), state);
+        NeoSyncDebug.info(
+            "container-be",
+            "created {} at {} state={}",
+            this.getClass().getSimpleName(),
+            pos.toShortString(),
+            state
+        );
     }
 
     @Override
     public void setShellState(@Nullable ShellState shell) {
         AbstractShellContainerBlockEntity target = this.getBottomPart().orElse(this);
-
         if (target != this) {
-            NeoSyncDebug.info("container-be", "redirecting setShellState from {} to bottom {} incoming={}", NeoSyncDebug.describe(this.level, this.worldPosition), NeoSyncDebug.describe(target.level, target.worldPosition), describeShell(shell));
+            NeoSyncDebug.info(
+                "container-be",
+                "redirecting setShellState from {} to bottom {} incoming={}",
+                NeoSyncDebug.describe(this.level, this.worldPosition),
+                NeoSyncDebug.describe(target.level, target.worldPosition),
+                NeoSyncDebug.describeShell(shell)
+            );
             target.setShellState(shell);
             return;
         }
 
-        NeoSyncDebug.info("container-be", "setShellState at {} old={} new={}", NeoSyncDebug.describe(this.level, this.worldPosition), describeShell(this.shell), describeShell(shell));
+        NeoSyncDebug.info(
+            "container-be",
+            "setShellState at {} old={} new={}",
+            NeoSyncDebug.describe(this.level, this.worldPosition),
+            NeoSyncDebug.describeShell(this.shell),
+            NeoSyncDebug.describeShell(shell)
+        );
         this.shell = shell;
-
         if (shell != null && this.worldPosition != null) {
             shell.setPos(this.worldPosition);
         }
-
         this.forceShellStateUpdate("setShellState");
+    }
+
+    public void applyClientVisualState(@Nullable ShellState shell, @Nullable DyeColor color, String reason) {
+        AbstractShellContainerBlockEntity target = this.getBottomPart().orElse(this);
+        if (target != this) {
+            target.applyClientVisualState(shell, color, reason);
+            return;
+        }
+
+        target.shell = shell;
+        if (target.shell != null && target.worldPosition != null) {
+            target.shell.setPos(target.worldPosition);
+        }
+        target.color = color;
+        target.setChanged();
+        NeoSyncDebug.info(
+            "container-be",
+            "applyClientVisualState reason={} at {} shell={} color={}",
+            reason,
+            NeoSyncDebug.describe(target.level, target.worldPosition),
+            NeoSyncDebug.describeShell(target.shell),
+            target.color
+        );
     }
 
     @Override
     @Nullable
     public ShellState getShellState() {
         AbstractShellContainerBlockEntity bottom = this.getBottomPart().orElse(this);
-
         if (bottom != this) {
             return bottom.getShellState();
         }
-
         return this.shell;
     }
 
@@ -120,8 +155,8 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
         }
 
         BlockState liveState = this.level.getBlockState(this.worldPosition);
-        boolean liveIsBottom = liveState.hasProperty(AbstractShellContainerBlock.HALF) && AbstractShellContainerBlock.isBottom(liveState);
-
+        boolean liveIsBottom = liveState.hasProperty(AbstractShellContainerBlock.HALF)
+            && AbstractShellContainerBlock.isBottom(liveState);
         if (liveIsBottom) {
             this.bottomPart = this;
             return Optional.of(this);
@@ -131,7 +166,6 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
             BlockEntity maybeBottom = this.level.getBlockEntity(this.worldPosition.below());
             this.bottomPart = maybeBottom instanceof AbstractShellContainerBlockEntity container ? container : null;
         }
-
         return Optional.ofNullable(this.bottomPart);
     }
 
@@ -144,10 +178,15 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
         if (this.level == null || this.level.isClientSide || this.worldPosition == null) {
             return;
         }
-
         BlockState liveState = this.level.getBlockState(this.worldPosition);
-        NeoSyncDebug.info("container-be", "forceShellStateUpdate reason={} at {} liveState={} shell={}", reason, NeoSyncDebug.describe(this.level, this.worldPosition), liveState, describeShell(this.shell));
-
+        NeoSyncDebug.info(
+            "container-be",
+            "forceShellStateUpdate reason={} at {} liveState={} shell={}",
+            reason,
+            NeoSyncDebug.describe(this.level, this.worldPosition),
+            liveState,
+            NeoSyncDebug.describeShell(this.shell)
+        );
         this.checkShellState(this.level, this.worldPosition, liveState, reason);
         this.setChanged();
         this.sync(reason);
@@ -159,12 +198,29 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
         }
 
         if (this.shell != null && this.shell.getColor() != this.color) {
-            NeoSyncDebug.info("container-be", "{} color sync at {} shell={} oldColor={} newColor={}", reason, NeoSyncDebug.describe(world, pos), describeShell(this.shell), this.shell.getColor(), this.color);
+            NeoSyncDebug.info(
+                "container-be",
+                "{} color sync at {} shell={} oldColor={} newColor={}",
+                reason,
+                NeoSyncDebug.describe(world, pos),
+                NeoSyncDebug.describeShell(this.shell),
+                this.shell.getColor(),
+                this.color
+            );
             this.shell.setColor(this.color);
         }
 
         if (this.requiresSync()) {
-            NeoSyncDebug.info("container-be", "{} requires sync at {} shell={} syncedShell={} visibleInventoryDirty={} inventoryDirty={}", reason, NeoSyncDebug.describe(world, pos), describeShell(this.shell), describeShell(this.syncedShell), this.visibleInventoryDirty, this.inventoryDirty);
+            NeoSyncDebug.info(
+                "container-be",
+                "{} requires sync at {} shell={} syncedShell={} visibleInventoryDirty={} inventoryDirty={}",
+                reason,
+                NeoSyncDebug.describe(world, pos),
+                NeoSyncDebug.describeShell(this.shell),
+                NeoSyncDebug.describeShell(this.syncedShell),
+                this.visibleInventoryDirty,
+                this.inventoryDirty
+            );
             this.updateShell(this.shell != this.syncedShell, !this.visibleInventoryDirty, reason);
             this.updateComparatorOutput(world, pos, state);
             this.syncedShellPos = this.shell == null ? null : this.shell.getPos();
@@ -179,7 +235,13 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
         }
 
         if (this.inventoryDirty) {
-            NeoSyncDebug.info("container-be", "{} inventory dirty update at {} shell={}", reason, NeoSyncDebug.describe(world, pos), describeShell(this.shell));
+            NeoSyncDebug.info(
+                "container-be",
+                "{} inventory dirty update at {} shell={}",
+                reason,
+                NeoSyncDebug.describe(world, pos),
+                NeoSyncDebug.describeShell(this.shell)
+            );
             this.updateComparatorOutput(world, pos, state);
             this.inventoryDirty = false;
             this.setChanged();
@@ -189,12 +251,12 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
 
     private boolean requiresSync() {
         return this.visibleInventoryDirty
-                || this.syncedShell != this.shell
-                || this.syncedColor != this.color
-                || this.shell != null && (
-                !Objects.equals(this.shell.getPos(), this.syncedShellPos)
-                        || !Objects.equals(this.shell.getColor(), this.syncedShellColor)
-                        || this.shell.getProgress() != this.syncedShellProgress
+            || this.syncedShell != this.shell
+            || this.syncedColor != this.color
+            || this.shell != null && (
+            !Objects.equals(this.shell.getPos(), this.syncedShellPos)
+                || !Objects.equals(this.shell.getColor(), this.syncedShellColor)
+                || this.shell.getProgress() != this.syncedShellProgress
         );
     }
 
@@ -204,13 +266,20 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
         }
 
         ShellStateManager shellManager = this.getShellStateManager();
-        NeoSyncDebug.info("container-be", "updateShell reason={} isNew={} partialUpdate={} old={} new={}", reason, isNew, partialUpdate, describeShell(this.syncedShell), describeShell(this.shell));
+        NeoSyncDebug.info(
+            "container-be",
+            "updateShell reason={} isNew={} partialUpdate={} old={} new={}",
+            reason,
+            isNew,
+            partialUpdate,
+            NeoSyncDebug.describeShell(this.syncedShell),
+            NeoSyncDebug.describeShell(this.shell)
+        );
 
         if (isNew) {
             if (this.syncedShell != null) {
                 shellManager.remove(this.syncedShell);
             }
-
             if (this.shell != null) {
                 shellManager.add(this.shell);
             }
@@ -225,10 +294,17 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
 
     private void updateComparatorOutput(Level world, BlockPos pos, BlockState state) {
         int currentProgressOutput = this.shell == null ? 0 : Mth.clamp((int) (this.shell.getProgress() * 15), 1, 15);
-        int currentInventoryOutput = this.shell == null ? 0 : AbstractContainerMenu.getRedstoneSignalFromContainer(this.shell.getInventory());
+        int currentInventoryOutput =
+            this.shell == null ? 0 : AbstractContainerMenu.getRedstoneSignalFromContainer(this.shell.getInventory());
 
-        if (!state.hasProperty(AbstractShellContainerBlock.OUTPUT) || !state.hasProperty(AbstractShellContainerBlock.HALF)) {
-            NeoSyncDebug.warn("container-be", "updateComparatorOutput skipped at {} because state lacks properties: {}", NeoSyncDebug.describe(world, pos), state);
+        if (!state.hasProperty(AbstractShellContainerBlock.OUTPUT)
+            || !state.hasProperty(AbstractShellContainerBlock.HALF)) {
+            NeoSyncDebug.warn(
+                "container-be",
+                "updateComparatorOutput skipped at {} because state lacks properties: {}",
+                NeoSyncDebug.describe(world, pos),
+                state
+            );
             return;
         }
 
@@ -237,24 +313,26 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
 
         if (this.progressComparatorOutput != currentProgressOutput) {
             this.progressComparatorOutput = currentProgressOutput;
-
-            if (state.getValue(AbstractShellContainerBlock.OUTPUT) == AbstractShellContainerBlock.ComparatorOutputType.PROGRESS) {
+            if (state.getValue(AbstractShellContainerBlock.OUTPUT)
+                == AbstractShellContainerBlock.ComparatorOutputType.PROGRESS) {
                 world.updateNeighbourForOutputSignal(pos, state.getBlock());
             }
-
-            if (topPartState.hasProperty(AbstractShellContainerBlock.OUTPUT) && topPartState.getValue(AbstractShellContainerBlock.OUTPUT) == AbstractShellContainerBlock.ComparatorOutputType.PROGRESS) {
+            if (topPartState.hasProperty(AbstractShellContainerBlock.OUTPUT)
+                && topPartState.getValue(AbstractShellContainerBlock.OUTPUT)
+                == AbstractShellContainerBlock.ComparatorOutputType.PROGRESS) {
                 world.updateNeighbourForOutputSignal(topPartPos, topPartState.getBlock());
             }
         }
 
         if (this.inventoryComparatorOutput != currentInventoryOutput) {
             this.inventoryComparatorOutput = currentInventoryOutput;
-
-            if (state.getValue(AbstractShellContainerBlock.OUTPUT) == AbstractShellContainerBlock.ComparatorOutputType.INVENTORY) {
+            if (state.getValue(AbstractShellContainerBlock.OUTPUT)
+                == AbstractShellContainerBlock.ComparatorOutputType.INVENTORY) {
                 world.updateNeighbourForOutputSignal(pos, state.getBlock());
             }
-
-            if (topPartState.hasProperty(AbstractShellContainerBlock.OUTPUT) && topPartState.getValue(AbstractShellContainerBlock.OUTPUT) == AbstractShellContainerBlock.ComparatorOutputType.INVENTORY) {
+            if (topPartState.hasProperty(AbstractShellContainerBlock.OUTPUT)
+                && topPartState.getValue(AbstractShellContainerBlock.OUTPUT)
+                == AbstractShellContainerBlock.ComparatorOutputType.INVENTORY) {
                 world.updateNeighbourForOutputSignal(topPartPos, topPartState.getBlock());
             }
         }
@@ -267,8 +345,12 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
     }
 
     public void onBreak(Level world, BlockPos pos) {
-        NeoSyncDebug.info("container-be", "onBreak at {} shell={}", NeoSyncDebug.describe(world, pos), describeShell(this.shell));
-
+        NeoSyncDebug.info(
+            "container-be",
+            "onBreak at {} shell={}",
+            NeoSyncDebug.describe(world, pos),
+            NeoSyncDebug.describeShell(this.shell)
+        );
         if (this.shell != null && world instanceof ServerLevel serverWorld) {
             this.getShellStateManager().remove(this.shell);
             this.destroyShell(serverWorld, pos);
@@ -277,7 +359,12 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
 
     protected void destroyShell(ServerLevel world, BlockPos pos) {
         if (this.shell != null) {
-            NeoSyncDebug.info("container-be", "destroyShell at {} shell={}", NeoSyncDebug.describe(world, pos), describeShell(this.shell));
+            NeoSyncDebug.info(
+                "container-be",
+                "destroyShell at {} shell={}",
+                NeoSyncDebug.describe(world, pos),
+                NeoSyncDebug.describeShell(this.shell)
+            );
             this.shell.drop(world, pos);
             new ShellDestroyedPacket(pos).send(world, pos, 32);
             this.setShellState(null);
@@ -306,7 +393,7 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
     }
 
     @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
+    public Packet<?> getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
     }
 
@@ -314,7 +401,6 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
     protected void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries) {
         super.saveAdditional(nbt, registries);
         SyncRegistries.push(registries);
-
         try {
             if (this.shell != null) {
                 nbt.put("shell", this.shell.writeNbt(new CompoundTag()));
@@ -322,16 +408,20 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
         } finally {
             SyncRegistries.pop();
         }
-
         nbt.putInt("color", this.color == null ? -1 : this.color.getId());
-        NeoSyncDebug.info("container-be", "saveAdditional at {} shell={} color={}", NeoSyncDebug.describe(this.level, this.worldPosition), describeShell(this.shell), this.color);
+        NeoSyncDebug.info(
+            "container-be",
+            "saveAdditional at {} shell={} color={}",
+            NeoSyncDebug.describe(this.level, this.worldPosition),
+            NeoSyncDebug.describeShell(this.shell),
+            this.color
+        );
     }
 
     @Override
     protected void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries) {
         super.loadAdditional(nbt, registries);
         SyncRegistries.push(registries);
-
         try {
             this.shell = nbt.contains("shell") ? ShellState.fromNbt(nbt.getCompound("shell")) : null;
         } finally {
@@ -344,47 +434,59 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
 
         int colorId = nbt.contains("color", Tag.TAG_INT) ? nbt.getInt("color") : -1;
         this.color = colorId == -1 ? null : DyeColor.byId(colorId);
-        NeoSyncDebug.info("container-be", "loadAdditional at {} shell={} color={}", NeoSyncDebug.describe(this.level, this.worldPosition), describeShell(this.shell), this.color);
-    }
-
-    private static int reorderSlotIndex(int slot, SimpleInventory inventory) {
-        final int mainSize = inventory.main.size();
-        final int armorSize = inventory.armor.size();
-        final int offHandSize = inventory.offHand.size();
-        return (
-                slot >= 0 && slot < armorSize ? (slot + mainSize)
-                        : slot >= armorSize && slot < (armorSize + offHandSize) ? (slot + mainSize)
-                        : (slot - armorSize - offHandSize)
+        NeoSyncDebug.info(
+            "container-be",
+            "loadAdditional at {} shell={} color={}",
+            NeoSyncDebug.describe(this.level, this.worldPosition),
+            NeoSyncDebug.describeShell(this.shell),
+            this.color
         );
     }
 
+    private static int reorderSlotIndex(int slot, SimpleInventory inventory) {
+        int mainSize = inventory.main.size();
+        int armorSize = inventory.armor.size();
+        int offHandSize = inventory.offHand.size();
+        if (slot >= 0 && slot < armorSize) {
+            return slot + mainSize;
+        }
+        if (slot >= armorSize && slot < (armorSize + offHandSize)) {
+            return slot + mainSize;
+        }
+        return slot - armorSize - offHandSize;
+    }
+
     private static boolean isVisibleSlot(int slot, SimpleInventory inventory) {
-        final int armorSize = inventory.armor.size();
-        final int offHandSize = inventory.offHand.size();
+        int armorSize = inventory.armor.size();
+        int offHandSize = inventory.offHand.size();
         return slot >= 0 && slot <= (armorSize + offHandSize);
     }
 
     @Override
     public boolean canPlaceItem(int slot, ItemStack stack) {
         AbstractShellContainerBlockEntity bottom = this.getBottomPart().orElse(null);
-
         if (bottom == null || bottom.shell == null) {
             return false;
         }
 
         SimpleInventory inventory = bottom.shell.getInventory();
-        final int armorSize = inventory.armor.size();
+        int armorSize = inventory.armor.size();
         boolean isArmorSlot = slot >= 0 && slot < armorSize;
-
         if (isArmorSlot) {
             EquipmentSlot equipmentSlot = ItemUtil.getPreferredEquipmentSlot(stack);
-            return ItemUtil.isArmor(stack) && equipmentSlot.getType() == EquipmentSlot.Type.HUMANOID_ARMOR && slot == equipmentSlot.getIndex();
+            return ItemUtil.isArmor(stack)
+                && equipmentSlot.getType() == EquipmentSlot.Type.HUMANOID_ARMOR
+                && slot == equipmentSlot.getIndex();
         }
 
         boolean isOffHandSlot = slot >= armorSize && slot < (armorSize + inventory.offHand.size());
-
         if (isOffHandSlot) {
-            return ItemUtil.getPreferredEquipmentSlot(stack) == EquipmentSlot.OFFHAND || inventory.main.stream().noneMatch(x -> x.isEmpty() || (x.getCount() + stack.getCount()) <= x.getMaxStackSize() && ItemStack.isSameItemSameComponents(x, stack));
+            return ItemUtil.getPreferredEquipmentSlot(stack) == EquipmentSlot.OFFHAND
+                || inventory.main.stream().noneMatch(x ->
+                x.isEmpty()
+                    || (x.getCount() + stack.getCount()) <= x.getMaxStackSize()
+                    && ItemStack.isSameItemSameComponents(x, stack)
+            );
         }
 
         return true;
@@ -392,13 +494,15 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
 
     @Override
     public ItemStack getItem(int slot) {
-        return this.getBottomPart().filter(x -> x.shell != null).map(x -> x.shell.getInventory().getItem(reorderSlotIndex(slot, x.shell.getInventory()))).orElse(ItemStack.EMPTY);
+        return this.getBottomPart()
+            .filter(x -> x.shell != null)
+            .map(x -> x.shell.getInventory().getItem(reorderSlotIndex(slot, x.shell.getInventory())))
+            .orElse(ItemStack.EMPTY);
     }
 
     @Override
     public void setItem(int slot, ItemStack stack) {
         AbstractShellContainerBlockEntity bottom = this.getBottomPart().orElse(null);
-
         if (bottom == null || bottom.shell == null || bottom.shell.getProgress() < ShellState.PROGRESS_DONE) {
             return;
         }
@@ -413,7 +517,6 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
     @Override
     public ItemStack removeItem(int slot, int amount) {
         AbstractShellContainerBlockEntity bottom = this.getBottomPart().orElse(null);
-
         if (bottom == null || bottom.shell == null) {
             return ItemStack.EMPTY;
         }
@@ -429,7 +532,6 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
     @Override
     public ItemStack removeItemNoUpdate(int slot) {
         AbstractShellContainerBlockEntity bottom = this.getBottomPart().orElse(null);
-
         if (bottom == null || bottom.shell == null) {
             return ItemStack.EMPTY;
         }
@@ -445,7 +547,6 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
     @Override
     public void clearContent() {
         AbstractShellContainerBlockEntity bottom = this.getBottomPart().orElse(null);
-
         if (bottom == null || bottom.shell == null) {
             return;
         }
@@ -458,7 +559,11 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
 
     @Override
     public int getContainerSize() {
-        return this.getBottomPart().map(x -> x.shell == null || x.shell.getProgress() < ShellState.PROGRESS_DONE ? 0 : x.shell.getInventory().getContainerSize()).orElse(0);
+        return this.getBottomPart()
+            .map(x -> x.shell == null || x.shell.getProgress() < ShellState.PROGRESS_DONE
+                ? 0
+                : x.shell.getInventory().getContainerSize())
+            .orElse(0);
     }
 
     @Override
@@ -476,16 +581,28 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
             return;
         }
 
-        NeoSyncDebug.info("container-be", "sync reason={} at {} shell={}", reason, NeoSyncDebug.describe(serverWorld, this.worldPosition), describeShell(this.shell));
+        NeoSyncDebug.info(
+            "container-be",
+            "sync reason={} at {} shell={} color={}",
+            reason,
+            NeoSyncDebug.describe(serverWorld, this.worldPosition),
+            NeoSyncDebug.describeShell(this.shell),
+            this.color
+        );
         syncBlockEntity(serverWorld, this.worldPosition, reason + ":self");
 
         BlockState state = this.getBlockState();
-
         if (state.hasProperty(AbstractShellContainerBlock.HALF)) {
             BlockPos otherPartPos = this.worldPosition.relative(AbstractShellContainerBlock.getDirectionTowardsAnotherPart(state));
             syncBlockEntity(serverWorld, otherPartPos, reason + ":other");
         } else {
-            NeoSyncDebug.warn("container-be", "sync reason={} at {} could not sync other half because state lacks HALF: {}", reason, NeoSyncDebug.describe(serverWorld, this.worldPosition), state);
+            NeoSyncDebug.warn(
+                "container-be",
+                "sync reason={} at {} could not sync other half because state lacks HALF: {}",
+                reason,
+                NeoSyncDebug.describe(serverWorld, this.worldPosition),
+                state
+            );
         }
 
         new ShellContainerStatePacket(this.worldPosition, this.shell, this.color).send(serverWorld, this.worldPosition, 96.0D);
@@ -498,26 +615,18 @@ public abstract class AbstractShellContainerBlockEntity extends BlockEntity impl
     private static void syncBlockEntity(ServerLevel world, BlockPos pos, String reason) {
         BlockState state = world.getBlockState(pos);
         BlockEntity blockEntity = world.getBlockEntity(pos);
-
-        NeoSyncDebug.info("container-be", "syncBlockEntity reason={} target={} state={} be={}", reason, NeoSyncDebug.describe(world, pos), state, blockEntity == null ? "null" : blockEntity.getClass().getSimpleName());
-
+        NeoSyncDebug.info(
+            "container-be",
+            "syncBlockEntity reason={} target={} state={} be={}",
+            reason,
+            NeoSyncDebug.describe(world, pos),
+            state,
+            blockEntity == null ? "null" : blockEntity.getClass().getSimpleName()
+        );
         if (blockEntity != null) {
             blockEntity.setChanged();
         }
-
         world.getChunkSource().blockChanged(pos);
         world.sendBlockUpdated(pos, state, state, Block.UPDATE_CLIENTS | Block.UPDATE_NEIGHBORS);
-    }
-
-    protected static String describeShell(@Nullable ShellState state) {
-        if (state == null) {
-            return "null";
-        }
-
-        return "uuid=" + state.getUuid()
-                + ",owner=" + state.getOwnerName()
-                + ",progress=" + state.getProgress()
-                + ",pos=" + (state.getPos() == null ? "null" : state.getPos().toShortString())
-                + ",world=" + state.getWorld();
     }
 }

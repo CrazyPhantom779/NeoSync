@@ -40,6 +40,7 @@ import java.util.stream.Stream;
 @OnlyIn(Dist.CLIENT)
 public class ShellSelectorGUI extends Screen {
     private static final int MAX_SLOTS = 8;
+    private static final int EMPTY_REFRESH_RETRIES = 20;
     private static final double MENU_RADIUS = 0.3F;
     private static final int BACKGROUND_COLOR = ColorUtil.fromDyeColor(DyeColor.BLACK, 0.3F);
     private static final Component TITLE = Component.translatable("gui.neosync.default.cross_button.title");
@@ -49,7 +50,6 @@ public class ShellSelectorGUI extends Screen {
         Component.translatable("gui.neosync.shell_selector.down.title"),
         Component.translatable("gui.neosync.shell_selector.left.title")
     );
-    private static final int EMPTY_REFRESH_RETRIES = 20;
 
     private final Runnable onCloseCallback;
     private final Runnable onRemovedCallback;

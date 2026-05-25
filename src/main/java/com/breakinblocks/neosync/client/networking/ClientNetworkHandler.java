@@ -48,6 +48,7 @@ public final class ClientNetworkHandler {
             payload.targetPos(),
             payload.storedState().isPresent()
         );
+
         ((ClientShell) player).endSync(
             payload.startWorld(),
             payload.startPos(),
@@ -77,6 +78,7 @@ public final class ClientNetworkHandler {
             payload.isArtificial(),
             payload.states().size()
         );
+
         Shell shell = (Shell) player;
         shell.changeArtificialStatus(payload.isArtificial());
         shell.setAvailableShellStates(payload.states().stream());
@@ -127,11 +129,24 @@ public final class ClientNetworkHandler {
                     updated.setColor(payload.color());
                     updated.setPos(payload.pos());
                 } else {
-                    NeoSyncDebug.warn(
-                        "client-net",
-                        "UPDATE ignored because shell {} was not in client list",
-                        payload.targetUuid()
-                    );
+                    ShellState resolved = resolveShellStateFromPayload(Minecraft.getInstance().level, payload);
+                    if (resolved != null) {
+                        resolved.setProgress(payload.progress());
+                        resolved.setColor(payload.color());
+                        resolved.setPos(payload.pos());
+                        shell.add(resolved);
+                        NeoSyncDebug.info(
+                            "client-net",
+                            "UPDATE backfilled shell {} into client list from container/payload",
+                            payload.targetUuid()
+                        );
+                    } else {
+                        NeoSyncDebug.warn(
+                            "client-net",
+                            "UPDATE ignored because shell {} was not in client list and no fallback state was available",
+                            payload.targetUuid()
+                        );
+                    }
                 }
             }
             case NONE -> {
@@ -154,6 +169,7 @@ public final class ClientNetworkHandler {
 
         ShellState shellState = payload.shell().orElse(null);
         DyeColor color = payload.color().orElse(null);
+
         NeoSyncDebug.info(
             "client-net",
             "container-state pos={} shell={} color={}",
@@ -161,6 +177,7 @@ public final class ClientNetworkHandler {
             shellState == null ? "null" : shellState.getUuid(),
             color
         );
+
         if (!applyContainerState(level, payload.pos(), shellState, color)) {
             NeoSyncDebug.warn(
                 "client-net",
@@ -168,6 +185,70 @@ public final class ClientNetworkHandler {
                 payload.pos()
             );
         }
+
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player != null && shellState != null) {
+            Shell shell = (Shell) player;
+            ShellState existing = shell.getShellStateByUuid(shellState.getUuid());
+            if (existing == null) {
+                NeoSyncDebug.info(
+                    "client-net",
+                    "container-state warming shell list with shell {} at {}",
+                    shellState.getUuid(),
+                    payload.pos()
+                );
+                shell.add(shellState);
+            } else {
+                existing.setProgress(shellState.getProgress());
+                existing.setColor(shellState.getColor());
+                existing.setPos(shellState.getPos());
+                NeoSyncDebug.info(
+                    "client-net",
+                    "container-state refreshed existing shell {} at {}",
+                    shellState.getUuid(),
+                    payload.pos()
+                );
+            }
+            refreshSelectorIfOpen("container-state");
+        }
+    }
+
+    private static ShellState resolveShellStateFromPayload(
+        ClientLevel level,
+        ShellStateUpdatePacket payload
+    ) {
+        if (payload.addedState() != null) {
+            return payload.addedState();
+        }
+
+        if (level == null || payload.pos() == null) {
+            return null;
+        }
+
+        for (BlockPos candidate : new BlockPos[] {payload.pos(), payload.pos().below(), payload.pos().above()}) {
+            BlockEntity blockEntity = level.getBlockEntity(candidate);
+            if (blockEntity instanceof AbstractShellContainerBlockEntity container) {
+                ShellState shellState = container.getShellState();
+                if (shellState != null && payload.targetUuid() != null && payload.targetUuid().equals(shellState.getUuid())) {
+                    return shellState;
+                }
+            } else if (blockEntity instanceof ShellStateContainer container) {
+                ShellState shellState = container.getShellState();
+                if (shellState != null && payload.targetUuid() != null && payload.targetUuid().equals(shellState.getUuid())) {
+                    return shellState;
+                }
+            }
+        }
+
+        ShellStateContainer container = ShellStateContainer.find(level, payload.pos());
+        if (container != null) {
+            ShellState shellState = container.getShellState();
+            if (shellState != null && payload.targetUuid() != null && payload.targetUuid().equals(shellState.getUuid())) {
+                return shellState;
+            }
+        }
+
+        return null;
     }
 
     private static boolean applyContainerState(
@@ -177,6 +258,7 @@ public final class ClientNetworkHandler {
         DyeColor color
     ) {
         BlockPos[] candidates = new BlockPos[] {pos, pos.below(), pos.above()};
+
         for (BlockPos candidate : candidates) {
             BlockEntity blockEntity = level.getBlockEntity(candidate);
             if (blockEntity instanceof AbstractShellContainerBlockEntity container) {
@@ -190,6 +272,7 @@ public final class ClientNetworkHandler {
                 blockEntity.setChanged();
                 return true;
             }
+
             if (blockEntity instanceof ShellStateContainer container) {
                 NeoSyncDebug.info(
                     "client-net",
@@ -211,6 +294,7 @@ public final class ClientNetworkHandler {
             container.setShellState(shellState);
             return true;
         }
+
         return false;
     }
 
@@ -228,6 +312,7 @@ public final class ClientNetworkHandler {
         if (updated.getHealth() <= 0) {
             updated.setHealth(0.01F);
         }
+
         updated.deathTime = 0;
         NeoSyncDebug.info("client-net", "player alive packet applied for {}", payload.playerUuid());
     }
@@ -239,10 +324,12 @@ public final class ClientNetworkHandler {
         }
 
         NeoSyncDebug.info("client-net", "shell destroyed effects at {}", payload.pos());
+
         for (int i = 0; i < 3; ++i) {
             player.clientLevel.addDestroyBlockEffect(payload.pos(), Blocks.DEEPSLATE.defaultBlockState());
             player.clientLevel.addDestroyBlockEffect(payload.pos().above(), Blocks.DEEPSLATE.defaultBlockState());
         }
+
         player.clientLevel.playSound(
             player,
             payload.pos(),

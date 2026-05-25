@@ -50,6 +50,7 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
             );
             return;
         }
+
         if (!ShellConstructorBlock.isBottom(liveState)) {
             NeoSyncDebug.warn("constructor", "server tick on upper half ignored at {}", NeoSyncDebug.describe(world, pos));
             return;
@@ -86,6 +87,7 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
     @Override
     public InteractionResult onUse(Level world, BlockPos pos, Player player, InteractionHand hand) {
         PlayerSyncEvents.ShellConstructionFailureReason failureReason = this.beginShellConstruction(player);
+
         if (failureReason == null) {
             NeoSyncDebug.info("constructor", "onUse success at {} player={}", NeoSyncDebug.describe(world, pos), player.getName().getString());
             return InteractionResult.SUCCESS;
@@ -107,6 +109,7 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
         PlayerSyncEvents.ShellConstructionFailureReason failureReason = this.shell == null
             ? PlayerSyncEvents.ALLOW_SHELL_CONSTRUCTION.invoker().allowShellConstruction(player, this)
             : PlayerSyncEvents.ShellConstructionFailureReason.OCCUPIED;
+
         if (failureReason != null) {
             return failureReason;
         }
@@ -116,8 +119,7 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
             float damage = serverPlayer.server.isHardcore() ? config.hardcoreFingerstickDamage() : config.fingerstickDamage();
             boolean isCreative = !serverPlayer.gameMode.isSurvival();
             boolean isLowOnHealth = (player.getHealth() + player.getAbsorptionAmount()) <= damage;
-            boolean hasTotemOfUndying = player.getMainHandItem().is(Items.TOTEM_OF_UNDYING)
-                || player.getOffhandItem().is(Items.TOTEM_OF_UNDYING);
+            boolean hasTotemOfUndying = player.getMainHandItem().is(Items.TOTEM_OF_UNDYING) || player.getOffhandItem().is(Items.TOTEM_OF_UNDYING);
 
             NeoSyncDebug.info(
                 "constructor",
@@ -175,9 +177,11 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
         int capacity = (int) SyncConfig.getInstance().shellConstructorCapacity();
         int missingFE = (int) Math.ceil((ShellState.PROGRESS_DONE - bottom.shell.getProgress()) * capacity);
         int accepted = Math.min(maxReceive, missingFE);
+
         if (accepted > 0 && !simulate) {
             float oldProgress = bottom.shell.getProgress();
             bottom.shell.setProgress(oldProgress + (float) accepted / capacity);
+
             NeoSyncDebug.info(
                 "constructor",
                 "receiveEnergy at {} accepted={} progress={} -> {}",
@@ -186,6 +190,7 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
                 oldProgress,
                 bottom.shell.getProgress()
             );
+
             bottom.forceShellStateUpdate("constructor-energy");
 
             if (oldProgress < ShellState.PROGRESS_DONE
@@ -206,6 +211,7 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
                 );
             }
         }
+
         return accepted;
     }
 
@@ -220,6 +226,7 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
         if (bottom == null || bottom.shell == null) {
             return 0;
         }
+
         int cap = (int) SyncConfig.getInstance().shellConstructorCapacity();
         return (int) (bottom.shell.getProgress() * cap);
     }
@@ -246,6 +253,7 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
             double bottomDistance = NeoSyncSableCompat.distanceSquared(world, player.position(), bottomCenter);
             double topDistance = NeoSyncSableCompat.distanceSquared(world, player.position(), topCenter);
             double nearestDistance = Math.min(bottomDistance, topDistance);
+
             if (nearestDistance < INSIDE_RADIUS_SQR) {
                 NeoSyncDebug.info(
                     "constructor",
@@ -273,6 +281,7 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
         if (players.isEmpty()) {
             return;
         }
+
         if (!state.hasProperty(ShellConstructorBlock.FACING)) {
             NeoSyncDebug.warn(
                 "constructor",
@@ -285,8 +294,11 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
 
         Vec3 bottomCenter = NeoSyncSableCompat.projectBlockCenter(world, pos);
         Vec3 topCenter = NeoSyncSableCompat.projectNeighborCenter(world, pos, Direction.UP);
-        Vec3 outsideCenter =
-            NeoSyncSableCompat.projectNeighborCenter(world, pos, state.getValue(ShellConstructorBlock.FACING).getOpposite());
+        Vec3 outsideCenter = NeoSyncSableCompat.projectNeighborCenter(
+            world,
+            pos,
+            state.getValue(ShellConstructorBlock.FACING).getOpposite()
+        );
 
         for (ServerPlayer player : players) {
             Vec3 insideCenter = nearestEntryCenter(world, player.position(), bottomCenter, topCenter);
@@ -313,6 +325,7 @@ public class ShellConstructorBlockEntity extends AbstractShellContainerBlockEnti
                     player.getYRot(),
                     player.getXRot()
                 );
+                player.setDeltaMovement(Vec3.ZERO);
             }
         }
 

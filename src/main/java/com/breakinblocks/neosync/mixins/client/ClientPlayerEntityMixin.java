@@ -51,29 +51,46 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
     @Shadow
     protected Minecraft minecraft;
 
-    @Unique private boolean sync$isArtificial = false;
-    @Unique private ConcurrentMap<UUID, ShellState> sync$shellsById = new ConcurrentHashMap<>();
-    @Unique @Nullable private UUID neosync$currentShellUuid;
-    @Unique @Nullable private UUID neosync$pendingShellUuid;
+    @Unique
+    private boolean sync$isArtificial = false;
+
+    @Unique
+    private ConcurrentMap<UUID, ShellState> sync$shellsById = new ConcurrentHashMap<>();
+
+    @Unique
+    @Nullable
+    private UUID neosync$currentShellUuid;
+
+    @Unique
+    @Nullable
+    private UUID neosync$pendingShellUuid;
 
     private ClientPlayerEntityMixin(ClientLevel world, GameProfile profile) {
         super(world, profile);
     }
 
     @Override
-    public @Nullable PlayerSyncEvents.SyncFailureReason beginSync(ShellState state, @Nullable BlockPos currentContainerPos) {
+    public @Nullable PlayerSyncEvents.SyncFailureReason beginSync(
+        ShellState state,
+        @Nullable BlockPos currentContainerPos
+    ) {
         ClientLevel world = this.clientLevel;
-
         if (world == null) {
             return PlayerSyncEvents.SyncFailureReason.OTHER_PROBLEM;
         }
 
-        PlayerSyncEvents.SyncFailureReason failureReason = this.canBeApplied(state) && state.getProgress() >= ShellState.PROGRESS_DONE
+        PlayerSyncEvents.SyncFailureReason failureReason =
+            this.canBeApplied(state) && state.getProgress() >= ShellState.PROGRESS_DONE
                 ? PlayerSyncEvents.ALLOW_SYNCING.invoker().allowSync(this, state)
                 : PlayerSyncEvents.SyncFailureReason.INVALID_SHELL;
 
         if (failureReason != null) {
-            NeoSyncDebug.warn("client-sync", "beginSync denied state={} reason={}", describeShell(state), failureReason.toText().getString());
+            NeoSyncDebug.warn(
+                "client-sync",
+                "beginSync denied state={} reason={}",
+                describeShell(state),
+                failureReason.toText().getString()
+            );
             return failureReason;
         }
 
@@ -83,23 +100,25 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
         BlockPos pos = this.blockPosition();
         BlockPos cameraPos = NeoSyncSableCompat.projectOut(world, pos);
         BlockPos cameraTargetPos = NeoSyncSableCompat.projectOut(world, state.getPos());
-        Direction facing = BlockPosUtil.getHorizontalFacing(pos, world).orElse(this.getDirection().getOpposite());
+        Direction facing = BlockPosUtil.getHorizontalFacing(pos, world)
+            .orElse(this.getDirection().getOpposite());
+
         SynchronizationRequestPacket request = new SynchronizationRequestPacket(state, currentContainerPos);
 
         NeoSyncDebug.info(
-                "client-sync",
-                "beginSync state={} currentPos={} cameraPos={} targetRaw={} cameraTarget={} currentContainer={}",
-                describeShell(state),
-                pos,
-                cameraPos,
-                state.getPos(),
-                cameraTargetPos,
-                currentContainerPos
+            "client-sync",
+            "beginSync state={} currentPos={} cameraPos={} targetRaw={} cameraTarget={} currentContainer={}",
+            describeShell(state),
+            pos,
+            cameraPos,
+            state.getPos(),
+            cameraTargetPos,
+            currentContainerPos
         );
 
         PersistentCameraEntityGoal cameraGoal = this.isDeadOrDying()
-                ? PersistentCameraEntityGoal.limbo(cameraPos, facing, cameraTargetPos, __ -> request.send())
-                : PersistentCameraEntityGoal.stairwayToHeaven(cameraPos, facing, cameraTargetPos, __ -> request.send());
+            ? PersistentCameraEntityGoal.limbo(cameraPos, facing, cameraTargetPos, __ -> request.send())
+            : PersistentCameraEntityGoal.stairwayToHeaven(cameraPos, facing, cameraTargetPos, __ -> request.send());
 
         HudController.hide();
 
@@ -113,9 +132,28 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
     }
 
     @Override
-    public void endSync(ResourceLocation startWorld, BlockPos startPos, Direction startFacing, ResourceLocation targetWorld, BlockPos targetPos, Direction targetFacing, @Nullable ShellState storedState) {
+    public void endSync(
+        ResourceLocation startWorld,
+        BlockPos startPos,
+        Direction startFacing,
+        ResourceLocation targetWorld,
+        BlockPos targetPos,
+        Direction targetFacing,
+        @Nullable ShellState storedState
+    ) {
         boolean syncFailed = Objects.equals(startWorld, targetWorld) && Objects.equals(startPos, targetPos);
-        NeoSyncDebug.info("client-sync", "endSync failed={} start={} {} target={} {} storedState={} pendingUuid={}", syncFailed, startWorld, startPos, targetWorld, targetPos, describeShell(storedState), this.neosync$pendingShellUuid);
+
+        NeoSyncDebug.info(
+            "client-sync",
+            "endSync failed={} start={} {} target={} {} storedState={} pendingUuid={}",
+            syncFailed,
+            startWorld,
+            startPos,
+            targetWorld,
+            targetPos,
+            describeShell(storedState),
+            this.neosync$pendingShellUuid
+        );
 
         if (syncFailed) {
             this.neosync$pendingShellUuid = null;
@@ -150,9 +188,14 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
         };
 
         boolean enableCamera = Objects.equals(startWorld, targetWorld);
-
         if (enableCamera) {
-            PersistentCameraEntityGoal cameraGoal = PersistentCameraEntityGoal.highwayToHell(startPos, startFacing, targetPos, targetFacing, __ -> restore.run());
+            PersistentCameraEntityGoal cameraGoal = PersistentCameraEntityGoal.highwayToHell(
+                startPos,
+                startFacing,
+                targetPos,
+                targetFacing,
+                __ -> restore.run()
+            );
             PersistentCameraEntity.setup(this.minecraft, cameraGoal);
         } else {
             restore.run();
@@ -171,14 +214,25 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
 
     @Override
     public void changeArtificialStatus(boolean isArtificial) {
-        NeoSyncDebug.info("client-shell", "changeArtificialStatus {} -> {}", this.sync$isArtificial, isArtificial);
+        NeoSyncDebug.info(
+            "client-shell",
+            "changeArtificialStatus {} -> {}",
+            this.sync$isArtificial,
+            isArtificial
+        );
         this.sync$isArtificial = isArtificial;
     }
 
     @Override
     public void setAvailableShellStates(Stream<ShellState> states) {
-        this.sync$shellsById = states.collect(Collectors.toConcurrentMap(ShellState::getUuid, x -> x));
-        NeoSyncDebug.info("client-shell", "setAvailableShellStates count={}", this.sync$shellsById.size());
+        this.sync$shellsById = states.collect(
+            Collectors.toConcurrentMap(ShellState::getUuid, x -> x)
+        );
+        NeoSyncDebug.info(
+            "client-shell",
+            "setAvailableShellStates count={}",
+            this.sync$shellsById.size()
+        );
     }
 
     @Override
@@ -193,10 +247,13 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
 
     @Override
     public void add(ShellState state) {
-        if (this.canBeApplied(state)) {
-            NeoSyncDebug.info("client-shell", "add state={}", describeShell(state));
-            this.sync$shellsById.put(state.getUuid(), state);
+        if (!shouldTrackShellState(state)) {
+            NeoSyncDebug.warn("client-shell", "add ignored null/invalid state");
+            return;
         }
+
+        NeoSyncDebug.info("client-shell", "add state={}", describeShell(state));
+        this.sync$shellsById.put(state.getUuid(), state);
     }
 
     @Override
@@ -209,10 +266,13 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
 
     @Override
     public void update(ShellState state) {
-        if (this.canBeApplied(state) || state != null && this.sync$shellsById.containsKey(state.getUuid())) {
-            NeoSyncDebug.info("client-shell", "update state={}", describeShell(state));
-            this.sync$shellsById.put(state.getUuid(), state);
+        if (!shouldTrackShellState(state)) {
+            NeoSyncDebug.warn("client-shell", "update ignored null/invalid state");
+            return;
         }
+
+        NeoSyncDebug.info("client-shell", "update state={}", describeShell(state));
+        this.sync$shellsById.put(state.getUuid(), state);
     }
 
     @Override
@@ -222,18 +282,38 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
 
     @Override
     public void onKillableEntityDeath() {
-        boolean canRespawn = this.sync$shellsById.values().stream()
-                .anyMatch(s -> this.canBeApplied(s) && s.getProgress() >= ShellState.PROGRESS_DONE);
         BlockPos pos = this.blockPosition();
         ResourceLocation world = WorldUtil.getId(this.level());
         Comparator<ShellState> comparator = ShellPriority.asComparator(world, pos, ShellPriority.NATURAL);
-        ShellState respawnShell = canRespawn ? this.sync$shellsById.values().stream()
-                .filter(x -> this.canBeApplied(x) && x.getProgress() >= ShellState.PROGRESS_DONE)
-                .min(comparator)
-                .orElse(null) : null;
 
-        if (respawnShell != null) {
-            this.beginSync(respawnShell);
+        ShellState respawnShell = this.sync$shellsById.values().stream()
+            .filter(ClientPlayerEntityMixin::isFinishedShell)
+            .min(comparator)
+            .orElse(null);
+
+        if (respawnShell == null) {
+            NeoSyncDebug.warn(
+                "client-sync",
+                "death-triggered beginSync found no valid respawn shell availableCount={}",
+                this.sync$shellsById.size()
+            );
+            return;
+        }
+
+        NeoSyncDebug.info(
+            "client-sync",
+            "death-triggered beginSync using respawn shell={}",
+            describeShell(respawnShell)
+        );
+
+        PlayerSyncEvents.SyncFailureReason failureReason = this.beginSync(respawnShell);
+        if (failureReason != null) {
+            NeoSyncDebug.warn(
+                "client-sync",
+                "death-triggered beginSync failed shell={} reason={}",
+                describeShell(respawnShell),
+                failureReason.toText().getString()
+            );
         }
     }
 
@@ -244,7 +324,6 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
                 this.deathTime = Mth.clamp(this.deathTime, 0, 19);
             } else {
                 this.deathTime = Mth.clamp(++this.deathTime, 0, 20);
-
                 if (this.updateKillableEntityPostDeath()) {
                     ci.cancel();
                 }
@@ -253,15 +332,29 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
     }
 
     @Override
-    @Nullable
-    public UUID neosync$getCurrentShellUuid() {
+    public @Nullable UUID neosync$getCurrentShellUuid() {
         return this.neosync$currentShellUuid;
     }
 
     @Override
     public void neosync$setCurrentShellUuid(@Nullable UUID uuid) {
-        NeoSyncDebug.info("client-shell", "set current shell uuid {} -> {}", this.neosync$currentShellUuid, uuid);
+        NeoSyncDebug.info(
+            "client-shell",
+            "set current shell uuid {} -> {}",
+            this.neosync$currentShellUuid,
+            uuid
+        );
         this.neosync$currentShellUuid = uuid;
+    }
+
+    @Unique
+    private static boolean shouldTrackShellState(@Nullable ShellState state) {
+        return state != null;
+    }
+
+    @Unique
+    private static boolean isFinishedShell(@Nullable ShellState state) {
+        return state != null && state.getProgress() >= ShellState.PROGRESS_DONE;
     }
 
     @Unique
@@ -271,9 +364,9 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
         }
 
         return "uuid=" + state.getUuid()
-                + ",owner=" + state.getOwnerName()
-                + ",progress=" + state.getProgress()
-                + ",pos=" + (state.getPos() == null ? "null" : state.getPos().toShortString())
-                + ",world=" + state.getWorld();
+            + ",owner=" + state.getOwnerName()
+            + ",progress=" + state.getProgress()
+            + ",pos=" + (state.getPos() == null ? "null" : state.getPos().toShortString())
+            + ",world=" + state.getWorld();
     }
 }

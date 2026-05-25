@@ -1,6 +1,7 @@
 package com.breakinblocks.neosync.client.block.entity;
 
 import com.breakinblocks.neosync.client.entity.PersistentCameraEntity;
+import com.breakinblocks.neosync.client.entity.PostSyncMachineEgress;
 import com.breakinblocks.neosync.client.gui.ShellSelectorGUI;
 import com.breakinblocks.neosync.common.utils.NeoSyncDebug;
 import net.minecraft.client.Minecraft;
@@ -61,6 +62,14 @@ public final class ShellStorageClientHooks {
             return false;
         }
 
+        if (PostSyncMachineEgress.suppressesMachineUi()) {
+            NeoSyncDebug.info(
+                "storage-client-hook",
+                "suppressing auto-open because post-sync machine egress is active"
+            );
+            return false;
+        }
+
         return hasNoScreen();
     }
 
@@ -71,10 +80,10 @@ public final class ShellStorageClientHooks {
     ) {
         Minecraft client = Minecraft.getInstance();
 
-        if (isCameraTransitionActive()) {
+        if (isCameraTransitionActive() || PostSyncMachineEgress.suppressesMachineUi()) {
             NeoSyncDebug.info(
                 "storage-client-hook",
-                "refusing to open shell selector during camera transition currentContainer={}",
+                "refusing to open shell selector during camera transition/egress currentContainer={}",
                 currentContainerPos
             );
             return;

@@ -7,6 +7,7 @@ import com.breakinblocks.neosync.api.shell.ShellPriority;
 import com.breakinblocks.neosync.api.shell.ShellState;
 import com.breakinblocks.neosync.client.entity.PersistentCameraEntity;
 import com.breakinblocks.neosync.client.entity.PersistentCameraEntityGoal;
+import com.breakinblocks.neosync.client.entity.PostSyncMachineEgress;
 import com.breakinblocks.neosync.client.gui.controller.DeathScreenController;
 import com.breakinblocks.neosync.client.gui.hud.HudController;
 import com.breakinblocks.neosync.common.entity.KillableEntity;
@@ -169,6 +170,7 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
             PersistentCameraEntity.unset(this.minecraft);
             HudController.restore();
             DeathScreenController.restore();
+            PostSyncMachineEgress.clear();
             return;
         }
 
@@ -193,6 +195,9 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
             PersistentCameraEntity.unset(this.minecraft);
             HudController.restore();
             DeathScreenController.restore();
+            if (this.clientLevel != null) {
+                PostSyncMachineEgress.start(this.clientLevel, targetPos);
+            }
             PlayerSyncEvents.STOP_SYNCING.invoker().onStopSyncing(this, startPos, storedState);
         };
 
@@ -353,6 +358,8 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
 
     @Inject(method = "aiStep", at = @At("HEAD"), cancellable = true)
     private void sync$updatePostDeath(CallbackInfo ci) {
+        PostSyncMachineEgress.tick((LocalPlayer) (Object) this);
+
         if (this.isDeadOrDying()) {
             if (this.minecraft.screen instanceof DeathScreen) {
                 this.deathTime = Mth.clamp(this.deathTime, 0, 19);

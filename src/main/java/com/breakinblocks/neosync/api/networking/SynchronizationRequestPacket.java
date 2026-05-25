@@ -4,13 +4,9 @@ import com.breakinblocks.neosync.NeoSync;
 import com.breakinblocks.neosync.api.event.PlayerSyncEvents;
 import com.breakinblocks.neosync.api.shell.ServerShell;
 import com.breakinblocks.neosync.api.shell.ShellState;
-import com.breakinblocks.neosync.api.shell.ShellStateContainer;
-import com.breakinblocks.neosync.common.block.ShellConstructorBlock;
-import com.breakinblocks.neosync.common.block.entity.ShellConstructorBlockEntity;
 import com.breakinblocks.neosync.common.utils.BlockPosUtil;
 import com.breakinblocks.neosync.common.utils.NeoSyncDebug;
 import com.breakinblocks.neosync.common.utils.WorldUtil;
-import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -18,11 +14,8 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.Nullable;
@@ -105,18 +98,16 @@ public record SynchronizationRequestPacket(
             BlockPos currentPos = player.blockPosition();
             Level currentWorld = player.level();
             ResourceLocation currentWorldId = WorldUtil.getId(currentWorld);
-            BlockPos responseCurrentPos = NeoSyncSableCompat.projectOut(currentWorld, currentPos);
             Direction currentFacing = BlockPosUtil.getHorizontalFacing(currentPos, currentWorld)
                 .orElse(player.getDirection().getOpposite());
 
             NeoSyncDebug.info(
                 "sync-packet",
-                "server handling sync request player={} shellUuid={} resolvedState={} currentPos={} responseCurrentPos={} currentContainer={}",
+                "server handling sync request player={} shellUuid={} resolvedState={} currentPos={} currentContainer={}",
                 player.getName().getString(),
                 payload.shellUuid().orElse(null),
                 state == null ? "null" : state.getUuid(),
                 currentPos,
-                responseCurrentPos,
                 payload.currentContainerPos().orElse(null)
             );
 
@@ -131,30 +122,20 @@ public record SynchronizationRequestPacket(
                         state,
                         storedState
                     );
-                    sendFailureResponse(player, currentWorldId, responseCurrentPos, currentFacing);
+                    sendFailureResponse(player, currentWorldId, currentPos, currentFacing);
                     return;
                 }
 
                 ResourceLocation targetWorldId = state.getWorld();
                 BlockPos targetPos = state.getPos();
-                Level targetWorld = player.getServer() == null
-                    ? null
-                    : WorldUtil.findWorld(player.getServer().getAllLevels(), targetWorldId).orElse(null);
-
-                BlockPos responseTargetPos = targetWorld == null
-                    ? targetPos
-                    : NeoSyncSableCompat.projectOut(targetWorld, targetPos);
-
-                responseTargetPos = handleConstructorArrival(player, targetWorld, targetPos, responseTargetPos);
                 Direction targetFacing = player.getDirection().getOpposite();
 
                 NeoSyncDebug.info(
                     "sync-packet",
-                    "sync success player={} targetWorld={} targetPos={} responseTargetPos={} storedShell={}",
+                    "sync success player={} targetWorld={} targetPos={} storedShell={} mode=inside-machine",
                     player.getName().getString(),
                     targetWorldId,
                     targetPos,
-                    responseTargetPos,
                     storedState.getUuid()
                 );
 
@@ -162,10 +143,10 @@ public record SynchronizationRequestPacket(
                     player,
                     new SynchronizationResponsePacket(
                         currentWorldId,
-                        responseCurrentPos,
+                        currentPos,
                         currentFacing,
                         targetWorldId,
-                        responseTargetPos,
+                        targetPos,
                         targetFacing,
                         Optional.of(storedState)
                     )
@@ -178,55 +159,9 @@ public record SynchronizationRequestPacket(
                     failureReason.toText().getString()
                 );
                 player.sendSystemMessage(failureReason.toText());
-                sendFailureResponse(player, currentWorldId, responseCurrentPos, currentFacing);
+                sendFailureResponse(player, currentWorldId, currentPos, currentFacing);
             });
         });
-    }
-
-    private static BlockPos handleConstructorArrival(
-        ServerPlayer player,
-        @Nullable Level targetWorld,
-        BlockPos targetPos,
-        BlockPos responseTargetPos
-    ) {
-        if (!(targetWorld instanceof ServerLevel serverLevel)) {
-            return responseTargetPos;
-        }
-
-        ShellStateContainer container = ShellStateContainer.find(serverLevel, targetPos);
-        if (!(container instanceof ShellConstructorBlockEntity constructor)) {
-            return responseTargetPos;
-        }
-
-        BlockPos constructorPos = constructor.getBlockPos();
-        BlockState constructorState = serverLevel.getBlockState(constructorPos);
-        Direction exitDirection =
-            constructorState.hasProperty(ShellConstructorBlock.FACING)
-                ? constructorState.getValue(ShellConstructorBlock.FACING).getOpposite()
-                : Direction.NORTH;
-
-        ShellConstructorBlock.setOpen(constructorState, serverLevel, constructorPos, true);
-
-        Vec3 outsideCenter = NeoSyncSableCompat.projectNeighborCenter(serverLevel, constructorPos, exitDirection);
-        player.connection.teleport(
-            outsideCenter.x,
-            Math.max(outsideCenter.y - 0.5D, player.getY()),
-            outsideCenter.z,
-            player.getYRot(),
-            player.getXRot()
-        );
-        player.setDeltaMovement(Vec3.ZERO);
-
-        BlockPos projectedExitPos = BlockPos.containing(outsideCenter);
-        NeoSyncDebug.info(
-            "sync-packet",
-            "constructor arrival eject player={} constructorPos={} exitDirection={} exitPos={}",
-            player.getName().getString(),
-            constructorPos,
-            exitDirection,
-            projectedExitPos
-        );
-        return projectedExitPos;
     }
 
     private static void sendFailureResponse(

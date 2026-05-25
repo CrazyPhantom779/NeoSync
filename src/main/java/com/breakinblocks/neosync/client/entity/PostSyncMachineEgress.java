@@ -17,7 +17,8 @@ import net.neoforged.api.distmarker.OnlyIn;
 @OnlyIn(Dist.CLIENT)
 public final class PostSyncMachineEgress {
     private static final int SUPPRESS_UI_TICKS = 20;
-    private static final int MAX_EGRESS_TICKS = 40;
+    private static final int MIN_EGRESS_TICKS = 4;
+    private static final int MAX_EGRESS_TICKS = 60;
 
     private static boolean active;
     private static int suppressUiTicks;
@@ -25,6 +26,7 @@ public final class PostSyncMachineEgress {
     private static BlockPos machinePos;
     private static Vec3 insideCenter;
     private static Vec3 outsideCenter;
+    private static MachineKind machineKind;
 
     private PostSyncMachineEgress() {
     }
@@ -47,11 +49,15 @@ public final class PostSyncMachineEgress {
         machinePos = path.machinePos;
         insideCenter = path.insideCenter;
         outsideCenter = path.outsideCenter;
+        machineKind = path.machineKind;
+
+        keepMachineOpen(level);
 
         NeoSyncDebug.info(
             "post-sync-egress",
-            "starting egress machine={} inside={} outside={}",
+            "starting egress machine={} kind={} inside={} outside={}",
             machinePos,
+            machineKind,
             NeoSyncDebug.describeVec(insideCenter),
             NeoSyncDebug.describeVec(outsideCenter)
         );
@@ -66,13 +72,21 @@ public final class PostSyncMachineEgress {
             return;
         }
 
-        if (player.level() == null || insideCenter == null || outsideCenter == null) {
+        if (!(player.level() instanceof ClientLevel level) || insideCenter == null || outsideCenter == null || machinePos == null || machineKind == null) {
             clear();
             return;
         }
 
-        if (player.distanceToSqr(outsideCenter.x, outsideCenter.y, outsideCenter.z) < 0.20D * 0.20D) {
-            NeoSyncDebug.info("post-sync-egress", "finished because player reached outside center machine={}", machinePos);
+        keepMachineOpen(level);
+
+        boolean isInside = BlockPosUtil.isEntityInside(player, insideCenter);
+        if (!isInside && egressTicks >= MIN_EGRESS_TICKS) {
+            NeoSyncDebug.info(
+                "post-sync-egress",
+                "finished because player is no longer inside machine={} ticks={}",
+                machinePos,
+                egressTicks
+            );
             clear();
             return;
         }
@@ -81,7 +95,13 @@ public final class PostSyncMachineEgress {
         BlockPosUtil.moveEntity(player, insideCenter, outsideCenter, false);
 
         if (egressTicks >= MAX_EGRESS_TICKS) {
-            NeoSyncDebug.info("post-sync-egress", "finished because max egress ticks reached machine={}", machinePos);
+            NeoSyncDebug.warn(
+                "post-sync-egress",
+                "forcing finish because max ticks reached machine={} ticks={} inside={}",
+                machinePos,
+                egressTicks,
+                BlockPosUtil.isEntityInside(player, insideCenter)
+            );
             clear();
         }
     }
@@ -95,7 +115,28 @@ public final class PostSyncMachineEgress {
         machinePos = null;
         insideCenter = null;
         outsideCenter = null;
+        machineKind = null;
         egressTicks = 0;
+    }
+
+    private static void keepMachineOpen(ClientLevel level) {
+        if (machinePos == null || machineKind == null) {
+            return;
+        }
+
+        BlockState state = level.getBlockState(machinePos);
+        switch (machineKind) {
+            case STORAGE -> {
+                if (state.getBlock() instanceof ShellStorageBlock && state.hasProperty(ShellStorageBlock.FACING)) {
+                    ShellStorageBlock.setOpen(state, level, machinePos, true);
+                }
+            }
+            case CONSTRUCTOR -> {
+                if (state.getBlock() instanceof ShellConstructorBlock && state.hasProperty(ShellConstructorBlock.FACING)) {
+                    ShellConstructorBlock.setOpen(state, level, machinePos, true);
+                }
+            }
+        }
     }
 
     private static EgressPath resolve(ClientLevel level, BlockPos shellPos) {
@@ -106,11 +147,11 @@ public final class PostSyncMachineEgress {
                 BlockPos bottom = ShellStorageBlock.isBottom(state) ? pos : pos.below();
                 BlockState bottomState = level.getBlockState(bottom);
                 Direction exit = bottomState.getValue(ShellStorageBlock.FACING).getOpposite();
-                ShellStorageBlock.setOpen(bottomState, level, bottom, true);
                 return new EgressPath(
                     bottom,
                     NeoSyncSableCompat.projectBlockCenter(level, bottom),
-                    NeoSyncSableCompat.projectNeighborCenter(level, bottom, exit)
+                    NeoSyncSableCompat.projectNeighborCenter(level, bottom, exit),
+                    MachineKind.STORAGE
                 );
             }
 
@@ -118,11 +159,11 @@ public final class PostSyncMachineEgress {
                 BlockPos bottom = ShellConstructorBlock.isBottom(state) ? pos : pos.below();
                 BlockState bottomState = level.getBlockState(bottom);
                 Direction exit = bottomState.getValue(ShellConstructorBlock.FACING).getOpposite();
-                ShellConstructorBlock.setOpen(bottomState, level, bottom, true);
                 return new EgressPath(
                     bottom,
                     NeoSyncSableCompat.projectBlockCenter(level, bottom),
-                    NeoSyncSableCompat.projectNeighborCenter(level, bottom, exit)
+                    NeoSyncSableCompat.projectNeighborCenter(level, bottom, exit),
+                    MachineKind.CONSTRUCTOR
                 );
             }
         }
@@ -130,6 +171,11 @@ public final class PostSyncMachineEgress {
         return null;
     }
 
-    private record EgressPath(BlockPos machinePos, Vec3 insideCenter, Vec3 outsideCenter) {
+    private record EgressPath(BlockPos machinePos, Vec3 insideCenter, Vec3 outsideCenter, MachineKind machineKind) {
+    }
+
+    private enum MachineKind {
+        STORAGE,
+        CONSTRUCTOR
     }
 }

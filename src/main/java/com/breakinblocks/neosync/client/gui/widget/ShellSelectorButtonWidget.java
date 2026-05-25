@@ -11,6 +11,7 @@ import com.breakinblocks.neosync.client.utils.render.ColorUtil;
 import com.breakinblocks.neosync.client.utils.render.RenderSystemUtil;
 import com.breakinblocks.neosync.common.utils.NeoSyncDebug;
 import com.breakinblocks.neosync.common.utils.math.Radians;
+import com.breakinblocks.neosync.integration.dragonsurvival.NeoSyncDragonSurvivalClientCompat;
 import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -18,6 +19,7 @@ import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.core.BlockPos;
@@ -194,11 +196,7 @@ public class ShellSelectorButtonWidget extends AbstractWidget {
         final double SHELL_WIDTH_HALF = 0.26F;
         final double SHELL_HEIGHT_HALF = 0.35F;
         final float SHELL_SCALE = 0.365F;
-
-        ShellEntity shellEntity = ClientShellEntities.get(this.shell);
-        shellEntity.refreshFromState();
-        shellEntity.pitchProgress = 0;
-        shellEntity.isActive = this.shell.getProgress() >= ShellState.PROGRESS_DONE;
+        final float DRAGON_SCALE_MULTIPLIER = 0.78F;
 
         double r = this.minorR + this.diffR / 2;
         double tAngle = (this.to + this.from) / 2;
@@ -212,12 +210,50 @@ public class ShellSelectorButtonWidget extends AbstractWidget {
 
         try {
             matrices.translate(tX, tY, this.majorR);
+
+            AbstractClientPlayer dragonPlayer =
+                this.shell.getProgress() >= ShellState.PROGRESS_DONE
+                    ? NeoSyncDragonSurvivalClientCompat.getRenderPlayer(this.shell, true)
+                    : null;
+
+            if (dragonPlayer != null) {
+                matrices.scale(scale * DRAGON_SCALE_MULTIPLIER, -scale * DRAGON_SCALE_MULTIPLIER, 1F);
+                matrices.mulPose(Axis.XP.rotationDegrees(10));
+                matrices.mulPose(Axis.YP.rotationDegrees(20));
+                RenderSystem.setupGui3DDiffuseLighting(
+                    new Vector3f((float) this.cX * 2, (float) this.cY * 2, -1),
+                    new Vector3f(0, 0, 1)
+                );
+                MatrixStackStorage.saveModelMatrixStack(matrices);
+                MultiBufferSource.BufferSource immediate = RenderSystemUtil.getEntityVertexConsumerProvider();
+                EntityRenderDispatcher renderDispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
+                renderDispatcher.render(
+                    dragonPlayer,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    matrices,
+                    immediate,
+                    RenderSystemUtil.MAX_LIGHT_LEVEL
+                );
+                immediate.endBatch();
+                return;
+            }
+
             matrices.scale(scale, -scale, 1F);
             matrices.mulPose(Axis.XP.rotationDegrees(15));
             matrices.mulPose(Axis.YP.rotationDegrees(40));
             RenderSystem.setupGui3DDiffuseLighting(new Vector3f((float) this.cX * 2, (float) this.cY * 2, -1), new Vector3f(0, 0, 1));
             MatrixStackStorage.saveModelMatrixStack(matrices);
             MultiBufferSource.BufferSource immediate = RenderSystemUtil.getEntityVertexConsumerProvider();
+
+            ShellEntity shellEntity = ClientShellEntities.get(this.shell);
+            shellEntity.refreshFromState();
+            shellEntity.pitchProgress = 0;
+            shellEntity.isActive = this.shell.getProgress() >= ShellState.PROGRESS_DONE;
+
             EntityRenderDispatcher renderDispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
             renderDispatcher.render(shellEntity, 0, 0, 0, 0, 0, matrices, immediate, RenderSystemUtil.MAX_LIGHT_LEVEL);
             immediate.endBatch();

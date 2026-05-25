@@ -49,6 +49,7 @@ public class ShellSelectorGUI extends Screen {
         Component.translatable("gui.neosync.shell_selector.down.title"),
         Component.translatable("gui.neosync.shell_selector.left.title")
     );
+    private static final int EMPTY_REFRESH_RETRIES = 20;
 
     private final Runnable onCloseCallback;
     private final Runnable onRemovedCallback;
@@ -56,6 +57,8 @@ public class ShellSelectorGUI extends Screen {
     private final BlockPos currentContainerPos;
 
     private boolean wasClosed;
+    private int emptyRefreshAttempts;
+    private int lastVisibleShellCount = -1;
     private List<ShellSelectorButtonWidget> shellButtons;
     private List<ArrowButtonWidget> arrowButtons;
     private CrossButtonWidget crossButton;
@@ -86,32 +89,16 @@ public class ShellSelectorGUI extends Screen {
         }
 
         ResourceLocation selectedWorld = player.level().dimension().location();
-        ClientShell clientShell = (ClientShell) player;
-        UUID currentShellUuid = clientShell.neosync$getCurrentShellUuid();
-        List<ShellState> allShellStates = clientShell.getAvailableShellStates().collect(Collectors.toList());
-        List<ShellState> shellStates = allShellStates.stream()
-            .filter(shellState -> !isCurrentContainerOption(currentShellUuid, shellState))
-            .collect(Collectors.toList());
+        List<ShellState> shellStates = collectVisibleShellStates(player);
+        this.lastVisibleShellCount = shellStates.size();
 
         NeoSyncDebug.info(
             "selector",
-            "init currentContainer={} currentShellUuid={} allStates={} visibleStates={}",
+            "init currentContainer={} visibleStates={} attempts={}",
             this.currentContainerPos,
-            currentShellUuid,
-            allShellStates.size(),
-            shellStates.size()
+            shellStates.size(),
+            this.emptyRefreshAttempts
         );
-        for (ShellState state : allShellStates) {
-            NeoSyncDebug.info(
-                "selector",
-                "state candidate uuid={} pos={} world={} progress={} filtered={}",
-                state.getUuid(),
-                state.getPos(),
-                state.getWorld(),
-                state.getProgress(),
-                isCurrentContainerOption(currentShellUuid, state)
-            );
-        }
 
         this.wasClosed = false;
         this.clearWidgets();
@@ -137,9 +124,73 @@ public class ShellSelectorGUI extends Screen {
         HudController.hide();
     }
 
+    @Override
+    public void tick() {
+        super.tick();
+
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) {
+            return;
+        }
+
+        if (!player.isAlive()) {
+            NeoSyncDebug.info("selector", "closing selector because local player is no longer alive");
+            this.onClose();
+            return;
+        }
+
+        List<ShellState> shellStates = collectVisibleShellStates(player);
+        int visibleShellCount = shellStates.size();
+
+        if (visibleShellCount != this.lastVisibleShellCount) {
+            NeoSyncDebug.info(
+                "selector",
+                "shell count changed while open {} -> {}, refreshing",
+                this.lastVisibleShellCount,
+                visibleShellCount
+            );
+            this.emptyRefreshAttempts = 0;
+            this.refreshFromNetwork();
+            return;
+        }
+
+        if (visibleShellCount == 0 && this.emptyRefreshAttempts < EMPTY_REFRESH_RETRIES) {
+            this.emptyRefreshAttempts++;
+            if ((this.emptyRefreshAttempts % 2) == 0) {
+                NeoSyncDebug.info(
+                    "selector",
+                    "refresh retry {} because selector opened empty currentContainer={}",
+                    this.emptyRefreshAttempts,
+                    this.currentContainerPos
+                );
+                this.refreshFromNetwork();
+            }
+        }
+    }
+
     public void refreshFromNetwork() {
         NeoSyncDebug.info("selector", "refreshFromNetwork currentContainer={}", this.currentContainerPos);
         this.init();
+    }
+
+    private List<ShellState> collectVisibleShellStates(LocalPlayer player) {
+        ClientShell clientShell = (ClientShell) player;
+        UUID currentShellUuid = clientShell.neosync$getCurrentShellUuid();
+        List<ShellState> allShellStates = clientShell.getAvailableShellStates().collect(Collectors.toList());
+        List<ShellState> shellStates = allShellStates.stream()
+            .filter(shellState -> !isCurrentContainerOption(currentShellUuid, shellState))
+            .collect(Collectors.toList());
+
+        NeoSyncDebug.info(
+            "selector",
+            "collectVisibleShellStates currentContainer={} currentShellUuid={} allStates={} visibleStates={}",
+            this.currentContainerPos,
+            currentShellUuid,
+            allShellStates.size(),
+            shellStates.size()
+        );
+
+        return shellStates;
     }
 
     private static List<ShellSelectorButtonWidget> createShellButtons(int screenWidth, int screenHeight, int count) {

@@ -7,9 +7,11 @@ import com.breakinblocks.neosync.common.utils.BlockPosUtil;
 import com.breakinblocks.neosync.common.utils.NeoSyncDebug;
 import com.breakinblocks.neosync.integration.sable.NeoSyncSableCompat;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -28,6 +30,8 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity implements IEnergyStorage {
     private EntityState entityState;
@@ -94,6 +98,20 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
                 shouldBeOpen
         );
 
+        if (world instanceof ServerLevel serverLevel && this.shell != null) {
+            List<ServerPlayer> trappedPlayers = getPlayersInsideProjected(serverLevel, pos);
+            if (!trappedPlayers.isEmpty()) {
+                NeoSyncDebug.warn(
+                    "storage",
+                    "occupied storage has trapped players at {} count={} opening and ejecting",
+                    NeoSyncDebug.describe(world, pos),
+                    trappedPlayers.size()
+                );
+                ShellStorageBlock.setOpen(state, world, pos, true);
+                ejectPlayers(serverLevel, pos, state, trappedPlayers, true, "occupied-storage");
+            }
+        }
+
         ShellStorageBlock.setPowered(state, world, pos, isPowered);
         ShellStorageBlock.setOpen(state, world, pos, shouldBeOpen);
 
@@ -137,6 +155,7 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
 
         if (localPlayer != null
                 && this.entityState != EntityState.LEAVING
+                && shouldAllowAutoOpen(localPlayer)
                 && canAcceptPlayerClient(state)
                 && isNearStorageEntry(world, pos, localPlayer)) {
             NeoSyncDebug.info("storage", "client tick fallback collision at {} player={} state={}", NeoSyncDebug.describe(world, pos), localPlayer.getName().getString(), this.entityState);
@@ -233,6 +252,12 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
     }
 
     @OnlyIn(Dist.CLIENT)
+    private static boolean shouldAllowAutoOpen(Entity entity) {
+        Object result = invokeClientHook("shouldAllowAutoOpen", new Class[]{Entity.class}, entity);
+        return result instanceof Boolean value && value;
+    }
+
+    @OnlyIn(Dist.CLIENT)
     @Nullable
     private static Entity getLocalClientPlayer() {
         Object result = invokeClientHook("getLocalPlayer", new Class[0]);
@@ -324,10 +349,87 @@ public class ShellStorageBlockEntity extends AbstractShellContainerBlockEntity i
         }
 
         if (!ShellStorageBlock.isOpen(state)) {
-            NeoSyncDebug.warn("storage", "client storage accepts because empty, but local visual state is closed/stale at {} state={}", NeoSyncDebug.describe(this.level, this.worldPosition), state);
+            NeoSyncDebug.info("storage", "client storage refuses auto-open because local visual state is closed at {} state={}", NeoSyncDebug.describe(this.level, this.worldPosition), state);
+            return false;
         }
 
         return true;
+    }
+
+    private static List<ServerPlayer> getPlayersInsideProjected(ServerLevel world, BlockPos pos) {
+        Vec3 bottomCenter = NeoSyncSableCompat.projectBlockCenter(world, pos);
+        Vec3 topCenter = NeoSyncSableCompat.projectNeighborCenter(world, pos, Direction.UP);
+
+        List<ServerPlayer> players = new ArrayList<>();
+        for (ServerPlayer player : world.players()) {
+            if (BlockPosUtil.isEntityInside(player, bottomCenter) || BlockPosUtil.isEntityInside(player, topCenter)) {
+                players.add(player);
+            }
+        }
+        return players;
+    }
+
+    private static Vec3 nearestEntryCenter(Vec3 playerPos, Vec3 bottomCenter, Vec3 topCenter) {
+        double bottomDistance = bottomCenter.distanceToSqr(playerPos);
+        double topDistance = topCenter.distanceToSqr(playerPos);
+        return bottomDistance <= topDistance ? bottomCenter : topCenter;
+    }
+
+    private static void ejectPlayers(
+        ServerLevel world,
+        BlockPos pos,
+        BlockState state,
+        List<ServerPlayer> players,
+        boolean hardEject,
+        String reason
+    ) {
+        if (players.isEmpty()) {
+            return;
+        }
+
+        if (!state.hasProperty(ShellStorageBlock.FACING)) {
+            NeoSyncDebug.warn(
+                "storage",
+                "cannot eject players at {} because state lacks facing: {}",
+                NeoSyncDebug.describe(world, pos),
+                state
+            );
+            return;
+        }
+
+        Vec3 bottomCenter = NeoSyncSableCompat.projectBlockCenter(world, pos);
+        Vec3 topCenter = NeoSyncSableCompat.projectNeighborCenter(world, pos, Direction.UP);
+        Vec3 outsideCenter =
+            NeoSyncSableCompat.projectNeighborCenter(world, pos, state.getValue(ShellStorageBlock.FACING).getOpposite());
+
+        for (ServerPlayer player : players) {
+            Vec3 insideCenter = nearestEntryCenter(player.position(), bottomCenter, topCenter);
+            double beforeDistance = NeoSyncSableCompat.distanceSquared(world, player.position(), insideCenter);
+
+            NeoSyncDebug.info(
+                "storage",
+                "ejecting player={} reason={} hardEject={} insideCenter={} outsideCenter={} distance={}",
+                player.getName().getString(),
+                reason,
+                hardEject,
+                NeoSyncDebug.describeVec(insideCenter),
+                NeoSyncDebug.describeVec(outsideCenter),
+                beforeDistance
+            );
+
+            BlockPosUtil.moveEntity(player, insideCenter, outsideCenter, false);
+
+            if (hardEject || beforeDistance < 0.20D * 0.20D) {
+                player.connection.teleport(
+                    outsideCenter.x,
+                    Math.max(outsideCenter.y - 0.5D, player.getY()),
+                    outsideCenter.z,
+                    player.getYRot(),
+                    player.getXRot()
+                );
+                player.setDeltaMovement(Vec3.ZERO);
+            }
+        }
     }
 
     @Override

@@ -25,6 +25,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.Nullable;
@@ -65,6 +66,9 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
     @Nullable
     private UUID neosync$pendingShellUuid;
 
+    @Unique
+    private boolean neosync$pendingSyncWasDeath;
+
     private ClientPlayerEntityMixin(ClientLevel world, GameProfile profile) {
         super(world, profile);
     }
@@ -95,6 +99,7 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
         }
 
         this.neosync$pendingShellUuid = state == null ? null : state.getUuid();
+        this.neosync$pendingSyncWasDeath = this.isDeadOrDying();
         PlayerSyncEvents.START_SYNCING.invoker().onStartSyncing(this, state);
 
         BlockPos pos = this.blockPosition();
@@ -107,16 +112,17 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
 
         NeoSyncDebug.info(
             "client-sync",
-            "beginSync state={} currentPos={} cameraPos={} targetRaw={} cameraTarget={} currentContainer={}",
+            "beginSync state={} currentPos={} cameraPos={} targetRaw={} cameraTarget={} currentContainer={} deathSync={}",
             describeShell(state),
             pos,
             cameraPos,
             state.getPos(),
             cameraTargetPos,
-            currentContainerPos
+            currentContainerPos,
+            this.neosync$pendingSyncWasDeath
         );
 
-        PersistentCameraEntityGoal cameraGoal = this.isDeadOrDying()
+        PersistentCameraEntityGoal cameraGoal = this.neosync$pendingSyncWasDeath
             ? PersistentCameraEntityGoal.limbo(cameraPos, facing, cameraTargetPos, __ -> request.send())
             : PersistentCameraEntityGoal.stairwayToHeaven(cameraPos, facing, cameraTargetPos, __ -> request.send());
 
@@ -142,17 +148,20 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
         @Nullable ShellState storedState
     ) {
         boolean syncFailed = Objects.equals(startWorld, targetWorld) && Objects.equals(startPos, targetPos);
+        boolean wasDeathSync = this.neosync$pendingSyncWasDeath;
+        this.neosync$pendingSyncWasDeath = false;
 
         NeoSyncDebug.info(
             "client-sync",
-            "endSync failed={} start={} {} target={} {} storedState={} pendingUuid={}",
+            "endSync failed={} start={} {} target={} {} storedState={} pendingUuid={} deathSync={}",
             syncFailed,
             startWorld,
             startPos,
             targetWorld,
             targetPos,
             describeShell(storedState),
-            this.neosync$pendingShellUuid
+            this.neosync$pendingShellUuid,
+            wasDeathSync
         );
 
         if (syncFailed) {
@@ -189,17 +198,42 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayer imple
 
         boolean enableCamera = Objects.equals(startWorld, targetWorld);
         if (enableCamera) {
-            PersistentCameraEntityGoal cameraGoal = PersistentCameraEntityGoal.highwayToHell(
-                startPos,
-                startFacing,
-                targetPos,
-                targetFacing,
-                __ -> restore.run()
-            );
+            PersistentCameraEntityGoal cameraGoal = wasDeathSync
+                ? createDeathArrivalGoal(startPos, startFacing, targetPos, targetFacing, restore)
+                : PersistentCameraEntityGoal.highwayToHell(startPos, startFacing, targetPos, targetFacing, __ -> restore.run());
             PersistentCameraEntity.setup(this.minecraft, cameraGoal);
         } else {
             restore.run();
         }
+    }
+
+    @Unique
+    private static PersistentCameraEntityGoal createDeathArrivalGoal(
+        BlockPos startPos,
+        Direction startFacing,
+        BlockPos targetPos,
+        Direction targetFacing,
+        Runnable onFinished
+    ) {
+        Vec3 center = new Vec3(
+            (startPos.getX() + targetPos.getX()) * 0.5D + 0.5D,
+            PersistentCameraEntityGoal.MAX_Y,
+            (startPos.getZ() + targetPos.getZ()) * 0.5D + 0.5D
+        );
+
+        return PersistentCameraEntityGoal.tp(
+            new BlockPos((int) Math.floor(center.x), (int) center.y, (int) Math.floor(center.z)),
+            startFacing.toYRot(),
+            90
+        ).then(
+            PersistentCameraEntityGoal.highwayToHell(
+                startPos,
+                startFacing,
+                targetPos,
+                targetFacing,
+                __ -> onFinished.run()
+            )
+        );
     }
 
     @Override
